@@ -1,0 +1,37 @@
+# Render deployment config for TeamFlow backend.
+# Docs: https://render.com/docs/yaml-spec
+#
+# Steps to deploy on Render:
+#  1. Push this repo to GitHub.
+#  2. Create a new Render account (free tier works).
+#  3. New > Blueprint > connect your repo.
+#  4. Render will read this file and create the service.
+#  5. Fill in the environment variables in the Render dashboard
+#     (see SETUP.md for every variable and where to get it).
+
+services:
+  - type: web
+    name: teamflow-api
+    runtime: node
+    region: oregon
+    plan: free          # upgrade to starter ($7/mo) to avoid spin-down
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3001
+      # ── Fill these in the Render dashboard, NOT in this file ──
+      # DATABASE_URL          — from Neon/Supabase project settings
+      #                         (non-superuser connection string)
+      # DATABASE_SUPERUSER_URL — same host, postgres user
+      #                         (only needed for db:migrate, not runtime)
+      # REDIS_URL             — from Upstash Redis dashboard
+      # JWT_SECRET            — generate: openssl rand -base64 32
+      # STRIPE_SECRET_KEY     — Stripe Dashboard > Developers > API Keys
+      # STRIPE_WEBHOOK_SECRET — Stripe Dashboard > Developers > Webhooks
+      # STRIPE_PRO_PRICE_ID   — Stripe Dashboard > Products
+      # FRONTEND_URL          — your Vercel deployment URL

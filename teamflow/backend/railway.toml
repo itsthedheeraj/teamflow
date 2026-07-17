@@ -1,0 +1,20 @@
+# Railway deployment config (alternative to Render).
+# Docs: https://docs.railway.app/reference/config-as-code
+#
+# Steps:
+#  1. Install Railway CLI: npm install -g @railway/cli
+#  2. railway login
+#  3. From the repo root: railway link  (creates/links a project)
+#  4. railway up  (deploys)
+#  5. Set env vars: railway variables set KEY=value
+#     (see SETUP.md for every variable and where to get it)
+
+[build]
+builder = "nixpacks"
+
+[deploy]
+startCommand = "node src/index.js"
+healthcheckPath = "/health"
+healthcheckTimeout = 30
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 3
