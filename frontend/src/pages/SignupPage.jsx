@@ -8,7 +8,7 @@ export default function SignupPage() {
   const navigate = useNavigate();
   const { setAuth } = useAuth();
 
-  const [form, setForm] = useState({ name: '', email: '', password: '', orgName: '' });
+  const [form, setForm] = useState({ name: '', email: '', password: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -25,8 +25,8 @@ export default function SignupPage() {
       setAuth({
         token: data.token,
         user: data.user,
-        org: data.org,
-        role: 'owner',
+        org: data.org || null,
+        role: data.role || null,
       });
       navigate('/projects');
     } catch (err) {
@@ -41,7 +41,7 @@ export default function SignupPage() {
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-gray-900">TeamFlow</h1>
-          <p className="mt-2 text-gray-500">Create your team workspace</p>
+          <p className="mt-2 text-gray-500">Create an account</p>
         </div>
 
         <form
@@ -80,23 +80,6 @@ export default function SignupPage() {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Organization name
-            </label>
-            <input
-              name="orgName"
-              value={form.orgName}
-              onChange={handleChange}
-              placeholder="Acme Corp"
-              required
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
-            />
-            <p className="mt-1 text-xs text-gray-400">
-              This becomes your shared team workspace. You'll be the Owner.
-            </p>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
               Work email
             </label>
             <input
@@ -112,7 +95,7 @@ export default function SignupPage() {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Password
+              Choose a password
             </label>
             <input
               name="password"
@@ -131,7 +114,7 @@ export default function SignupPage() {
             disabled={loading}
             className="w-full bg-brand-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-brand-700 disabled:opacity-50 transition-colors"
           >
-            {loading ? 'Creating workspace…' : 'Create workspace'}
+            {loading ? 'Creating account…' : 'Create account'}
           </button>
 
           <p className="text-center text-sm text-gray-500">

@@ -129,7 +129,7 @@ export default function Layout({ children }) {
 
       {/* Bottom section */}
       <div className="flex-shrink-0 border-t border-gray-100">
-        <SidebarUsageWidget />
+        {auth?.org && <SidebarUsageWidget />}
 
         {/* User row */}
         <div className="px-3 py-3 flex items-center gap-2.5">
@@ -213,10 +213,19 @@ export default function Layout({ children }) {
         </header>
 
         {/* Page content */}
-        <main className="flex-1 w-full">
-          <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
-            {children}
-          </div>
+        <main className="flex-1 w-full flex flex-col">
+          {!auth?.org && !pathname.startsWith('/invites') ? (
+            <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
+              <h2 className="text-2xl font-bold text-gray-900">Welcome to TeamFlow!</h2>
+              <p className="mt-2 text-gray-600 max-w-sm">
+                You don't belong to any workspace yet. Create a new workspace from the sidebar menu to get started.
+              </p>
+            </div>
+          ) : (
+            <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-8 w-full">
+              {children}
+            </div>
+          )}
         </main>
       </div>
     </div>

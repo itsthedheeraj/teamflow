@@ -1,8 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { api } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
+import { useUI } from '../context/UIContext';
 import Layout from '../components/Layout';
+import { MessageSquare, Plus, X, Calendar, Edit2, Trash2 } from 'lucide-react';
 
 const STATUSES = ['todo', 'in_progress', 'done'];
 const STATUS_LABELS = { todo: 'To Do', in_progress: 'In Progress', done: 'Done' };
@@ -15,6 +17,7 @@ const STATUS_COLORS = {
 export default function TaskBoardPage() {
   const { projectId } = useParams();
   const { auth } = useAuth();
+  const { showToast, confirm } = useUI();
 
   const [project, setProject] = useState(null);
   const [tasks, setTasks] = useState([]);
@@ -22,7 +25,6 @@ export default function TaskBoardPage() {
   const [showForm, setShowForm] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
   const [form, setForm] = useState({ title: '', description: '', assignedTo: '' });
-  const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
   const canManage = auth?.role === 'admin' || auth?.role === 'owner' || project?.team_lead_id === auth?.user?.id;
@@ -38,7 +40,7 @@ export default function TaskBoardPage() {
       setTasks(tasksData.tasks || []);
       setMembers(membersData.members || []);
     } catch (err) {
-      setError(err.message);
+      showToast(err.message, 'error');
     }
   }
 
@@ -62,7 +64,6 @@ export default function TaskBoardPage() {
 
   async function handleSubmit(e) {
     e.preventDefault();
-    setError('');
     setLoading(true);
     try {
       const payload = {
@@ -77,29 +78,43 @@ export default function TaskBoardPage() {
       }
       resetForm();
       load();
+      showToast(editingTask ? 'Task updated' : 'Task created', 'success');
     } catch (err) {
-      setError(err.message);
+      showToast(err.message, 'error');
     } finally {
       setLoading(false);
     }
   }
 
-  async function handleStatusChange(taskId, status) {
+  async function handleStatusChange(taskId, newStatus) {
     try {
-      await api.patch(`/tasks/${taskId}`, { status });
-      load();
+      await api.patch(`/tasks/${taskId}`, { status: newStatus });
+      await load();
+      showToast('Status updated', 'success');
     } catch (err) {
-      setError(err.message);
+      showToast(err.message, 'error');
+    }
+  }
+
+  async function handleUpdateNote(taskId, noteText) {
+    try {
+      await api.patch(`/tasks/${taskId}`, { latestNote: noteText });
+      await load();
+      showToast('Note saved', 'success');
+    } catch (err) {
+      showToast(err.message, 'error');
     }
   }
 
   async function handleDelete(taskId) {
-    if (!window.confirm('Delete this task?')) return;
+    const confirmed = await confirm('Delete this task?');
+    if (!confirmed) return;
     try {
       await api.delete(`/tasks/${taskId}`);
       load();
+      showToast('Task deleted', 'success');
     } catch (err) {
-      setError(err.message);
+      showToast(err.message, 'error');
     }
   }
 
@@ -134,12 +149,6 @@ export default function TaskBoardPage() {
             </button>
           )}
         </div>
-
-        {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3">
-            {error}
-          </div>
-        )}
 
         {/* Task form */}
         {showForm && (
@@ -223,6 +232,7 @@ export default function TaskBoardPage() {
                     onEdit={startEdit}
                     onDelete={handleDelete}
                     currentUserId={auth?.user?.id}
+                    onUpdateNote={handleUpdateNote}
                   />
                 ))
               )}
@@ -234,65 +244,191 @@ export default function TaskBoardPage() {
   );
 }
 
-function TaskCard({ task, canManage, onStatusChange, onEdit, onDelete, currentUserId }) {
+function TaskCard({ task, canManage, onStatusChange, onEdit, onDelete, currentUserId, onUpdateNote }) {
   const isAssignedToMe = task.assigned_to === currentUserId;
+  const [isEditingNote, setIsEditingNote] = useState(false);
+  const [noteText, setNoteText] = useState(task.latest_note || '');
+  const [isNoteExpanded, setIsNoteExpanded] = useState(false);
+  const [isDescExpanded, setIsDescExpanded] = useState(false);
+  const noteRef = useRef(null);
+  const descRef = useRef(null);
+
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (noteRef.current && !noteRef.current.contains(e.target)) {
+        setIsNoteExpanded(false);
+      }
+      if (descRef.current && !descRef.current.contains(e.target)) {
+        setIsDescExpanded(false);
+      }
+    }
+    if (isNoteExpanded || isDescExpanded) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isNoteExpanded, isDescExpanded]);
+
+  const handleSaveNote = () => {
+    onUpdateNote(task.id, noteText);
+    setIsEditingNote(false);
+  };
+
+  const formattedDate = new Date(task.created_at).toLocaleDateString('en-US', {
+    month: 'short', day: 'numeric'
+  });
+  
+  const formattedNoteDate = task.latest_note_updated_at ? new Date(task.latest_note_updated_at).toLocaleDateString('en-US', {
+    month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'
+  }) : '';
 
   return (
-    <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-3 hover:shadow-sm transition-shadow">
+    <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-4 shadow-sm hover:shadow-md transition-shadow group">
+      
+      {/* Header: Title & Actions */}
       <div className="flex items-start justify-between gap-2">
-        <p className="text-sm font-medium text-gray-900 leading-snug">{task.title}</p>
-        <div className="flex gap-1.5 flex-shrink-0">
+        <p className="text-[15px] font-semibold text-gray-900 leading-snug">{task.title}</p>
+        <div className="flex gap-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
           {canManage && (
             <button
               onClick={() => onEdit(task)}
-              className="text-xs text-gray-400 hover:text-gray-700"
+              className="p-1 text-gray-400 hover:text-brand-600 hover:bg-brand-50 rounded"
+              title="Edit Task"
             >
-              Edit
+              <Edit2 size={14} />
             </button>
           )}
           {canManage && (
             <button
               onClick={() => onDelete(task.id)}
-              className="text-xs text-red-400 hover:text-red-600"
+              className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"
+              title="Delete Task"
             >
-              Del
+              <Trash2 size={14} />
             </button>
           )}
         </div>
       </div>
 
+      {/* Description */}
       {task.description && (
-        <p className="text-xs text-gray-500 line-clamp-2">{task.description}</p>
+        <div ref={descRef}>
+          <p className={`text-sm text-gray-600 ${isDescExpanded ? 'whitespace-pre-wrap' : 'line-clamp-2'}`}>
+            {task.description}
+          </p>
+          {task.description.length > 80 && !isDescExpanded && (
+            <button 
+              onClick={() => setIsDescExpanded(true)}
+              className="text-[11px] text-brand-600 font-medium hover:underline mt-1 block"
+            >
+              Read more
+            </button>
+          )}
+        </div>
       )}
 
-      <div className="flex items-center justify-between gap-2 flex-wrap">
+      {/* Latest Note Section */}
+      <div className="mt-2">
+        {!isEditingNote ? (
+          <div className="relative">
+            {task.latest_note ? (
+              <div ref={noteRef} className="bg-amber-50/50 border border-amber-100 rounded-lg p-3 space-y-1.5 group/note relative">
+                <div className="flex items-center gap-1.5 text-xs text-amber-800/70 font-medium">
+                  <MessageSquare size={12} className="text-amber-500" />
+                  <span>Latest Note by {task.latest_note_by_name || (task.latest_note_by_email && task.latest_note_by_email.split('@')[0]) || 'Someone'}</span>
+                  <span className="text-amber-800/40">• {formattedNoteDate}</span>
+                </div>
+                <p className={`text-sm text-amber-900 ${isNoteExpanded ? 'whitespace-pre-wrap' : 'truncate'}`}>{task.latest_note}</p>
+                
+                {task.latest_note && task.latest_note.length > 50 && !isNoteExpanded && (
+                  <button 
+                    onClick={() => setIsNoteExpanded(true)}
+                    className="text-[11px] text-amber-700 font-medium hover:underline block"
+                  >
+                    Read more
+                  </button>
+                )}
+                
+                <button
+                  onClick={() => { setNoteText(task.latest_note || ''); setIsEditingNote(true); }}
+                  className="absolute top-2 right-2 p-1 text-amber-600/0 group-hover/note:text-amber-600/50 hover:!text-amber-600 hover:bg-amber-100 rounded transition-all"
+                  title="Edit Note"
+                >
+                  <Edit2 size={12} />
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setIsEditingNote(true)}
+                className="flex items-center gap-1.5 text-xs font-medium text-gray-400 hover:text-brand-600 transition-colors"
+              >
+                <Plus size={13} strokeWidth={2.5} /> Add Note
+              </button>
+            )}
+          </div>
+        ) : (
+          <div className="bg-gray-50 border border-gray-200 rounded-lg p-2.5 space-y-2">
+            <textarea
+              autoFocus
+              value={noteText}
+              onChange={(e) => setNoteText(e.target.value)}
+              placeholder="What's the latest update?"
+              className="w-full text-sm bg-white border border-gray-200 rounded p-2 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 resize-none"
+              rows={2}
+            />
+            <div className="flex gap-2 justify-end">
+              <button
+                onClick={() => setIsEditingNote(false)}
+                className="text-xs font-medium text-gray-500 hover:text-gray-700 px-2 py-1"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveNote}
+                className="text-xs font-medium bg-brand-600 text-white hover:bg-brand-700 px-3 py-1 rounded shadow-sm"
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Footer: Meta & Status */}
+      <div className="flex items-center justify-between gap-3 pt-2 border-t border-gray-100 mt-2">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5 text-xs text-gray-400" title="Created on">
+            <Calendar size={13} />
+            <span>{formattedDate}</span>
+          </div>
+
+          {task.assigned_to_email && (
+            <div
+              className={`flex items-center justify-center w-6 h-6 rounded-full text-[10px] font-bold text-white shadow-sm ring-2 ring-white ${
+                isAssignedToMe ? 'bg-brand-500' : 'bg-gray-400'
+              }`}
+              title={task.assigned_to_name ? `${task.assigned_to_name} (${task.assigned_to_email})` : task.assigned_to_email}
+            >
+              {(task.assigned_to_name?.[0] || task.assigned_to_email[0]).toUpperCase()}
+            </div>
+          )}
+        </div>
+
         {/* Status dropdown */}
         <select
           value={task.status}
           onChange={(e) => onStatusChange(task.id, e.target.value)}
           disabled={!canManage && !isAssignedToMe}
-          className={`text-xs border border-gray-200 rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-brand-500 ${
-            !canManage && !isAssignedToMe ? 'opacity-50 cursor-not-allowed bg-gray-50' : ''
+          className={`text-xs font-medium border border-gray-200 rounded-md px-2 py-1 focus:outline-none focus:ring-1 focus:ring-brand-500 shadow-sm ${
+            !canManage && !isAssignedToMe ? 'opacity-50 cursor-not-allowed bg-gray-50' : 'bg-white hover:bg-gray-50'
           }`}
           title={!canManage && !isAssignedToMe ? "You can only change the status of tasks assigned to you" : ""}
         >
           <option value="todo">To Do</option>
-          <option value="in_progress">In Progress</option>
+          <option value="in_progress">In progress</option>
           <option value="done">Done</option>
         </select>
-
-        {task.assigned_to_email && (
-          <span
-            className={`text-xs px-2 py-0.5 rounded-full ${
-              isAssignedToMe
-                ? 'bg-brand-50 text-brand-600 font-medium'
-                : 'bg-gray-100 text-gray-500'
-            }`}
-            title={task.assigned_to_name ? `${task.assigned_to_name} (${task.assigned_to_email})` : task.assigned_to_email}
-          >
-            {isAssignedToMe ? 'You' : (task.assigned_to_name || task.assigned_to_email.split('@')[0])}
-          </span>
-        )}
       </div>
     </div>
   );

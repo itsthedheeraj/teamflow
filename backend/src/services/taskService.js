@@ -23,10 +23,15 @@ async function listTasks(client, { projectId } = {}) {
             u_assigned.name  AS assigned_to_name,
             u_created.email  AS created_by_email,
             u_created.name   AS created_by_name,
-            t.created_by
+            t.created_by,
+            t.latest_note,
+            t.latest_note_updated_at,
+            u_latest_note.name AS latest_note_by_name,
+            u_latest_note.email AS latest_note_by_email
      FROM tasks t
      LEFT JOIN users u_assigned ON u_assigned.id = t.assigned_to
      LEFT JOIN users u_created  ON u_created.id  = t.created_by
+     LEFT JOIN users u_latest_note ON u_latest_note.id = t.latest_note_by
      WHERE ($1::uuid IS NULL OR t.project_id = $1)
      ORDER BY t.created_at DESC`,
     [projectId || null]
@@ -43,10 +48,15 @@ async function getTask(client, taskId) {
             u_assigned.name  AS assigned_to_name,
             u_created.email  AS created_by_email,
             u_created.name   AS created_by_name,
-            t.created_by
+            t.created_by,
+            t.latest_note,
+            t.latest_note_updated_at,
+            u_latest_note.name AS latest_note_by_name,
+            u_latest_note.email AS latest_note_by_email
      FROM tasks t
      LEFT JOIN users u_assigned ON u_assigned.id = t.assigned_to
      LEFT JOIN users u_created  ON u_created.id  = t.created_by
+     LEFT JOIN users u_latest_note ON u_latest_note.id = t.latest_note_by
      WHERE t.id = $1`,
     [taskId]
   );
@@ -71,17 +81,21 @@ async function createTask(client, { orgId, projectId, title, description, assign
   return rows[0];
 }
 
-async function updateTask(client, taskId, { title, description, status, assignedTo }) {
+async function updateTask(client, taskId, { title, description, status, assignedTo, latestNote, updatedBy }) {
   const { rows } = await client.query(
     `UPDATE tasks
      SET title       = COALESCE($2, title),
          description = COALESCE($3, description),
          status      = COALESCE($4, status),
          assigned_to = CASE WHEN $5::boolean THEN $6::uuid ELSE assigned_to END,
+         latest_note = CASE WHEN $7::boolean THEN $8::text ELSE latest_note END,
+         latest_note_by = CASE WHEN $7::boolean THEN $9::uuid ELSE latest_note_by END,
+         latest_note_updated_at = CASE WHEN $7::boolean THEN NOW() ELSE latest_note_updated_at END,
          updated_at  = NOW()
      WHERE id = $1
      RETURNING id, org_id, project_id, title, description, status,
-               assigned_to, created_by, created_at, updated_at`,
+               assigned_to, created_by, created_at, updated_at,
+               latest_note, latest_note_updated_at, latest_note_by`,
     [
       taskId,
       title || null,
@@ -90,6 +104,10 @@ async function updateTask(client, taskId, { title, description, status, assigned
       // $5: whether to update assigned_to (allows setting it to NULL explicitly)
       assignedTo !== undefined,
       assignedTo || null,
+      // $7: whether to update latest_note
+      latestNote !== undefined,
+      latestNote || null,
+      updatedBy || null,
     ]
   );
   return rows[0] || null;

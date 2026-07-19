@@ -2,17 +2,18 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
+import { useUI } from '../context/UIContext';
 import Layout from '../components/Layout';
 
 export default function ProjectsPage() {
   const { auth } = useAuth();
+  const { showToast, confirm } = useUI();
   const [projects, setProjects] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [teamLeadId, setTeamLeadId] = useState('');
   const [showForm, setShowForm] = useState(false);
-  const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [teamMembers, setTeamMembers] = useState([]);
 
@@ -27,7 +28,7 @@ export default function ProjectsPage() {
       setProjects(projectsRes.projects || []);
       setTeamMembers(teamRes.members || []);
     } catch (err) {
-      setError(err.message);
+      showToast(err.message, 'error');
     }
   }
 
@@ -35,26 +36,28 @@ export default function ProjectsPage() {
 
   async function handleCreate(e) {
     e.preventDefault();
-    setError('');
     setLoading(true);
     try {
       await api.post('/projects', { name, description, team_lead_id: teamLeadId });
       setName(''); setDescription(''); setTeamLeadId(''); setShowForm(false);
       loadData();
+      showToast('Project created', 'success');
     } catch (err) {
-      setError(err.message);
+      showToast(err.message, 'error');
     } finally {
       setLoading(false);
     }
   }
 
   async function handleDelete(id) {
-    if (!window.confirm('Delete this project and all its tasks?')) return;
+    const confirmed = await confirm('Delete this project and all its tasks?');
+    if (!confirmed) return;
     try {
       await api.delete(`/projects/${id}`);
       loadData();
+      showToast('Project deleted', 'success');
     } catch (err) {
-      setError(err.message);
+      showToast(err.message, 'error');
     }
   }
 
@@ -94,12 +97,6 @@ export default function ProjectsPage() {
             )}
           </div>
         </div>
-
-        {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3">
-            {error}
-          </div>
-        )}
 
         {/* Create project form */}
         {showForm && (

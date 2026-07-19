@@ -3,15 +3,15 @@ import { useNavigate } from 'react-router-dom';
 import { MailOpen, Check, X, Bell, ExternalLink } from 'lucide-react';
 import { api } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
+import { useUI } from '../context/UIContext';
 import Layout from '../components/Layout';
 
 export default function MyInvitesPage() {
   const { updateOrg } = useAuth();
+  const { showToast, confirm } = useUI();
   const navigate = useNavigate();
   const [invites, setInvites] = useState([]);
   const [notifications, setNotifications] = useState([]);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
 
   async function loadData() {
@@ -23,40 +23,37 @@ export default function MyInvitesPage() {
       setInvites(invitesRes.invites || []);
       setNotifications(notificationsRes.notifications || []);
     } catch (err) {
-      setError(err.message);
+      showToast(err.message, 'error');
     }
   }
 
   useEffect(() => { loadData(); }, []);
 
   async function handleAccept(token) {
-    setError('');
-    setSuccess('');
     setLoading(true);
     try {
       const res = await api.post('/auth/accept-invite', { token });
-      setSuccess(`Successfully joined ${res.org.name}! Switching workspace...`);
+      showToast(`Successfully joined ${res.org.name}! Switching workspace...`, 'success');
       setTimeout(() => {
         updateOrg(res.token, res.org, res.role);
         navigate('/projects');
       }, 1500);
     } catch (err) {
-      setError(err.message);
+      showToast(err.message, 'error');
       setLoading(false);
     }
   }
 
   async function handleDecline(token) {
-    if (!window.confirm('Are you sure you want to decline this invite?')) return;
-    setError('');
-    setSuccess('');
+    const confirmed = await confirm('Are you sure you want to decline this invite?');
+    if (!confirmed) return;
     setLoading(true);
     try {
       await api.delete(`/auth/me/invites/${token}`);
-      setSuccess('Invite declined successfully.');
+      showToast('Invite declined successfully.', 'success');
       loadData();
     } catch (err) {
-      setError(err.message);
+      showToast(err.message, 'error');
     } finally {
       setLoading(false);
     }
@@ -70,7 +67,7 @@ export default function MyInvitesPage() {
         navigate(link);
       }
     } catch (err) {
-      setError(err.message);
+      showToast(err.message, 'error');
     }
   }
 
@@ -81,18 +78,6 @@ export default function MyInvitesPage() {
           <MailOpen size={24} className="text-brand-600" />
           My Invites & Notifications
         </h1>
-
-        {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl px-4 py-3">
-            {error}
-          </div>
-        )}
-        
-        {success && (
-          <div className="bg-green-50 border border-green-200 text-green-700 text-sm rounded-xl px-4 py-3">
-            {success}
-          </div>
-        )}
 
         {/* Pending Invites Section */}
         <section className="space-y-4">

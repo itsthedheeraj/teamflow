@@ -148,6 +148,7 @@ router.patch(
       .isIn(['todo', 'in_progress', 'done'])
       .withMessage('Status must be todo, in_progress, or done'),
     body('assignedTo').optional().isUUID().withMessage('Invalid assignedTo user ID'),
+    body('latestNote').optional().isString().withMessage('latestNote must be a string'),
   ],
   async (req, res, next) => {
     if (!validate(req, res)) return;
@@ -174,7 +175,12 @@ router.patch(
         }
       }
 
-      const task = await updateTask(req.dbClient, req.params.id, req.body);
+      const taskData = { ...req.body };
+      if (taskData.latestNote !== undefined) {
+        taskData.updatedBy = req.user.userId;
+      }
+
+      const task = await updateTask(req.dbClient, req.params.id, taskData);
       if (!task) return res.status(404).json({ error: 'Task not found' });
 
       if (

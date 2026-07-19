@@ -36,17 +36,8 @@ function signToken(userId, orgId, role) {
  * All four inserts are wrapped in a transaction so a partial failure
  * (e.g., slug collision) doesn't leave orphaned users or orgs.
  */
-async function signup({ name, email, password, orgName }) {
+async function signup({ name, email, password }) {
   const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
-
-  // Slugify: "Acme Corp" → "acme-corp", then append a short random suffix
-  // to avoid collisions without a retry loop
-  const baseSlug = orgName
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '');
-  const slug = `${baseSlug}-${Math.random().toString(36).slice(2, 7)}`;
 
   const client = await pool.connect();
   try {
@@ -60,25 +51,10 @@ async function signup({ name, email, password, orgName }) {
       [email.toLowerCase().trim(), passwordHash, name]
     );
 
-    // 2. Create organization
-    const { rows: [org] } = await client.query(
-      `INSERT INTO organizations (name, slug)
-       VALUES ($1, $2)
-       RETURNING id, name, slug, subscription_tier`,
-      [orgName.trim(), slug]
-    );
-
-    // 3. Add user as owner of the org
-    await client.query(
-      `INSERT INTO org_members (org_id, user_id, role)
-       VALUES ($1, $2, 'owner')`,
-      [org.id, user.id]
-    );
-
     await client.query('COMMIT');
 
-    const token = signToken(user.id, org.id, 'owner');
-    return { token, user, org };
+    const token = signToken(user.id, null, null);
+    return { token, user, org: null };
   } catch (err) {
     await client.query('ROLLBACK');
     // Postgres unique violation code
@@ -110,8 +86,8 @@ async function login({ email, password }) {
             o.slug  AS org_slug,
             o.subscription_tier
      FROM users u
-     JOIN org_members om ON om.user_id = u.id
-     JOIN organizations o ON o.id = om.org_id
+     LEFT JOIN org_members om ON om.user_id = u.id
+     LEFT JOIN organizations o ON o.id = om.org_id
      WHERE u.email = $1
      ORDER BY om.created_at ASC
      LIMIT 1`,
@@ -132,17 +108,17 @@ async function login({ email, password }) {
     throw e;
   }
 
-  const token = signToken(row.id, row.org_id, row.role);
+  const token = signToken(row.id, row.org_id || null, row.role || null);
   return {
     token,
     user: { id: row.id, email: row.email, name: row.name },
-    org: {
+    org: row.org_id ? {
       id: row.org_id,
       name: row.org_name,
       slug: row.org_slug,
       subscriptionTier: row.subscription_tier,
-    },
-    role: row.role,
+    } : null,
+    role: row.role || null,
   };
 }
 
@@ -201,4 +177,49 @@ async function getMyOrgs(userId) {
   return rows;
 }
 
-module.exports = { signup, login, switchOrg, getMyOrgs, signToken };
+/**
+ * createOrg()
+ *
+ * Creates a new organization for an existing authenticated user.
+ * The user becomes the 'owner' of the new org.
+ */
+async function createOrg({ userId, orgName }) {
+  const baseSlug = orgName
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
+  const slug = `${baseSlug}-${Math.random().toString(36).slice(2, 7)}`;
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    // 1. Create organization
+    const { rows: [org] } = await client.query(
+      `INSERT INTO organizations (name, slug)
+       VALUES ($1, $2)
+       RETURNING id, name, slug, subscription_tier`,
+      [orgName.trim(), slug]
+    );
+
+    // 2. Add user as owner of the org
+    await client.query(
+      `INSERT INTO org_members (org_id, user_id, role)
+       VALUES ($1, $2, 'owner')`,
+      [org.id, userId]
+    );
+
+    await client.query('COMMIT');
+
+    // Switch context immediately to the new org
+    return await switchOrg({ userId, targetOrgId: org.id });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
+module.exports = { signup, login, switchOrg, getMyOrgs, signToken, createOrg };

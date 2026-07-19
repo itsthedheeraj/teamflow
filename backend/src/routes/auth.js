@@ -1,6 +1,6 @@
 const { Router } = require('express');
 const { body, validationResult } = require('express-validator');
-const { signup, login, switchOrg, getMyOrgs } = require('../services/authService');
+const { signup, login, switchOrg, getMyOrgs, createOrg } = require('../services/authService');
 const { acceptInvite, getMyPendingInvites, declinePendingInvite } = require('../services/inviteService');
 const { verifyJWT } = require('../middleware/verifyJWT');
 
@@ -29,10 +29,6 @@ router.post(
     body('password')
       .isLength({ min: 8 })
       .withMessage('Password must be at least 8 characters'),
-    body('orgName')
-      .trim()
-      .isLength({ min: 2, max: 80 })
-      .withMessage('Organization name must be 2–80 characters'),
   ],
   async (req, res, next) => {
     if (!validate(req, res)) return;
@@ -101,6 +97,33 @@ router.get('/me/orgs', verifyJWT, async (req, res, next) => {
     next(err);
   }
 });
+
+// ─────────────────────────────────────────────
+// POST /api/auth/me/orgs
+// Creates a new organization for the authenticated user
+// ─────────────────────────────────────────────
+router.post(
+  '/me/orgs',
+  verifyJWT,
+  [
+    body('orgName')
+      .trim()
+      .isLength({ min: 2, max: 80 })
+      .withMessage('Organization name must be 2–80 characters'),
+  ],
+  async (req, res, next) => {
+    if (!validate(req, res)) return;
+    try {
+      const result = await createOrg({
+        userId: req.user.userId,
+        orgName: req.body.orgName,
+      });
+      res.status(201).json(result);
+    } catch (err) {
+      next(err);
+    }
+  }
+);
 
 // ─────────────────────────────────────────────
 // GET /api/auth/me/invites

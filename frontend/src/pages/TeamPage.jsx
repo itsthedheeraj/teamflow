@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Send, Trash2 } from 'lucide-react';
 import { api } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
+import { useUI } from '../context/UIContext';
 import Layout from '../components/Layout';
 
 // ─── Role pill styles ─────────────────────────────────────────────
@@ -26,11 +27,10 @@ function avatarColor(email = '') {
 // ─── Component ───────────────────────────────────────────────────
 export default function TeamPage() {
   const { auth } = useAuth();
+  const { showToast, confirm } = useUI();
   const [members, setMembers]       = useState([]);
   const [invites, setInvites]       = useState([]);
   const [inviteEmail, setInviteEmail] = useState('');
-  const [error, setError]     = useState('');
-  const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
 
   const isAdmin = auth?.role === 'admin' || auth?.role === 'owner';
@@ -48,7 +48,7 @@ export default function TeamPage() {
       setMembers(membersData.members || []);
       setInvites(invitesData.invites || []);
     } catch (err) {
-      setError(err.message);
+      showToast(err.message, 'error');
     }
   }
 
@@ -57,15 +57,14 @@ export default function TeamPage() {
   // ── Actions ───────────────────────────────────────────────────
   async function handleInvite(e) {
     e.preventDefault();
-    setError(''); setSuccess('');
     setLoading(true);
     try {
       await api.post('/team/invite', { email: inviteEmail, role: 'member' });
-      setSuccess(`Invite sent to ${inviteEmail}.`);
+      showToast(`Invite sent to ${inviteEmail}.`, 'success');
       setInviteEmail('');
       loadTeam();
     } catch (err) {
-      setError(err.message);
+      showToast(err.message, 'error');
     } finally {
       setLoading(false);
     }
@@ -75,18 +74,21 @@ export default function TeamPage() {
     try {
       await api.patch(`/team/members/${userId}/role`, { role: newRole });
       loadTeam();
+      showToast('Role updated successfully', 'success');
     } catch (err) {
-      setError(err.message);
+      showToast(err.message, 'error');
     }
   }
 
   async function handleRemove(userId) {
-    if (!window.confirm('Remove this member from the organization?')) return;
+    const confirmed = await confirm('Remove this member from the organization?');
+    if (!confirmed) return;
     try {
       await api.delete(`/team/members/${userId}`);
       loadTeam();
+      showToast('Member removed', 'success');
     } catch (err) {
-      setError(err.message);
+      showToast(err.message, 'error');
     }
   }
 
@@ -94,8 +96,9 @@ export default function TeamPage() {
     try {
       await api.delete(`/team/invites/${inviteId}`);
       loadTeam();
+      showToast('Invite revoked', 'success');
     } catch (err) {
-      setError(err.message);
+      showToast(err.message, 'error');
     }
   }
 
@@ -107,25 +110,12 @@ export default function TeamPage() {
       <div className="max-w-3xl mx-auto space-y-6">
         <h1 className="text-xl font-bold text-gray-900">Team</h1>
 
-        {/* Global error banner */}
-        {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl px-4 py-3">
-            {error}
-          </div>
-        )}
-
         {/* ── Card 1: Invite a teammate ────────────────────────── */}
         {isAdmin && (
           <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-3">
             <h2 className="text-sm font-semibold text-gray-800">
               Invite a teammate
             </h2>
-
-            {success && (
-              <div className="bg-green-50 border border-green-200 text-green-700 text-sm rounded-lg px-3 py-2">
-                {success}
-              </div>
-            )}
 
             {/* Stacks vertically on mobile, single row on sm+ */}
             <form onSubmit={handleInvite} className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">

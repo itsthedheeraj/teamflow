@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
-import { ChevronDown, Check } from 'lucide-react';
+import { ChevronDown, Check, Plus } from 'lucide-react';
 import { api } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
+import { useUI } from '../context/UIContext';
 
 /**
  * SidebarOrgSwitcher
@@ -28,9 +29,12 @@ function orgColor(name = '') {
 
 export default function SidebarOrgSwitcher() {
   const { auth, updateOrg } = useAuth();
+  const { showToast } = useUI();
   const [orgs, setOrgs] = useState([]);
   const [open, setOpen] = useState(false);
   const [switching, setSwitching] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
+  const [newOrgName, setNewOrgName] = useState('');
   const ref = useRef(null);
 
   useEffect(() => {
@@ -40,7 +44,11 @@ export default function SidebarOrgSwitcher() {
   // Close on outside click
   useEffect(() => {
     function handler(e) {
-      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+      if (ref.current && !ref.current.contains(e.target)) {
+        setOpen(false);
+        setIsCreating(false);
+        setNewOrgName('');
+      }
     }
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
@@ -55,8 +63,23 @@ export default function SidebarOrgSwitcher() {
       setOpen(false);
       window.location.reload();
     } catch (err) {
-      console.error('Org switch failed:', err.message);
+      showToast(err.message, 'error');
     } finally {
+      setSwitching(false);
+    }
+  }
+
+  async function handleCreate(e) {
+    e.preventDefault();
+    if (!newOrgName.trim()) return;
+    setSwitching(true);
+    try {
+      const data = await api.post('/auth/me/orgs', { orgName: newOrgName });
+      updateOrg(data.token, data.org, data.role);
+      setOpen(false);
+      window.location.reload();
+    } catch (err) {
+      showToast(err.message, 'error');
       setSwitching(false);
     }
   }
@@ -77,7 +100,7 @@ export default function SidebarOrgSwitcher() {
           {initial}
         </span>
         <span className="flex-1 text-xs font-medium text-gray-800 truncate min-w-0">
-          {name}
+          {name || 'No Workspace'}
         </span>
         <ChevronDown
           size={13}
@@ -110,6 +133,52 @@ export default function SidebarOrgSwitcher() {
               </button>
             );
           })}
+          
+          <div className="border-t border-gray-100 mt-1">
+            {isCreating ? (
+              <form onSubmit={handleCreate} className="px-3 py-2 flex flex-col gap-2">
+                <input
+                  type="text"
+                  autoFocus
+                  placeholder="Workspace name..."
+                  value={newOrgName}
+                  onChange={(e) => setNewOrgName(e.target.value)}
+                  disabled={switching}
+                  className="w-full text-xs border border-gray-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                />
+                <div className="flex gap-1.5">
+                  <button
+                    type="submit"
+                    disabled={switching || !newOrgName.trim()}
+                    className="flex-1 bg-brand-600 text-white text-xs font-medium py-1.5 rounded hover:bg-brand-700 disabled:opacity-50"
+                  >
+                    {switching ? 'Creating...' : 'Create'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsCreating(false);
+                      setNewOrgName('');
+                    }}
+                    disabled={switching}
+                    className="flex-1 bg-gray-100 text-gray-600 text-xs font-medium py-1.5 rounded hover:bg-gray-200"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <button
+                onClick={() => setIsCreating(true)}
+                className="w-full flex items-center gap-2 px-3 py-2 text-xs text-brand-600 hover:bg-brand-50 hover:text-brand-700 transition-colors"
+              >
+                <div className="w-5 h-5 rounded-md bg-brand-100 flex items-center justify-center flex-shrink-0">
+                  <Plus size={12} strokeWidth={2.5} />
+                </div>
+                <span className="font-medium">Create workspace</span>
+              </button>
+            )}
+          </div>
         </div>
       )}
     </div>
