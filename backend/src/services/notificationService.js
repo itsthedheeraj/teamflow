@@ -15,7 +15,7 @@ async function listUnreadNotifications(client, userId, orgId) {
   const db = client || pool;
   const { rows } = await db.query(
     `SELECT * FROM notifications 
-     WHERE user_id = $1 AND is_read = false
+     WHERE user_id = $1
      ORDER BY created_at DESC`,
     [userId]
   );
@@ -34,8 +34,18 @@ async function markNotificationAsRead(client, notificationId, userId, orgId) {
   return rows[0];
 }
 
+async function deleteNotification(client, notificationId, userId) {
+  const db = client || pool;
+  await db.query(
+    `DELETE FROM notifications 
+     WHERE id = $1 AND user_id = $2`,
+    [notificationId, userId]
+  );
+}
+
 module.exports = {
   createNotification,
   listUnreadNotifications,
-  markNotificationAsRead
+  markNotificationAsRead,
+  deleteNotification
 };

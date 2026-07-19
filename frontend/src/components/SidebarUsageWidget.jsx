@@ -22,9 +22,16 @@ export default function SidebarUsageWidget() {
   const [usage, setUsage] = useState(null);
 
   useEffect(() => {
-    api.get('/usage')
-      .then((d) => setUsage(d.usage))
-      .catch(() => {});
+    function fetchUsage() {
+      api.get('/usage')
+        .then((d) => setUsage(d.usage))
+        .catch(() => {});
+    }
+    
+    fetchUsage();
+    
+    window.addEventListener('usage:refresh', fetchUsage);
+    return () => window.removeEventListener('usage:refresh', fetchUsage);
   }, [auth?.org?.id]);
 
   if (!usage) return null;

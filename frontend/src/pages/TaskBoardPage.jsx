@@ -78,6 +78,9 @@ export default function TaskBoardPage() {
       }
       resetForm();
       load();
+      if (!editingTask) {
+        window.dispatchEvent(new Event('usage:refresh'));
+      }
       showToast(editingTask ? 'Task updated' : 'Task created', 'success');
     } catch (err) {
       showToast(err.message, 'error');
@@ -112,6 +115,7 @@ export default function TaskBoardPage() {
     try {
       await api.delete(`/tasks/${taskId}`);
       load();
+      window.dispatchEvent(new Event('usage:refresh'));
       showToast('Task deleted', 'success');
     } catch (err) {
       showToast(err.message, 'error');

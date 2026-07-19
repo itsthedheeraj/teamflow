@@ -87,6 +87,7 @@ export default function TeamPage() {
     try {
       await api.delete(`/team/members/${userId}`);
       loadTeam();
+      window.dispatchEvent(new Event('usage:refresh'));
       showToast('Member removed', 'success');
     } catch (err) {
       showToast(err.message, 'error');

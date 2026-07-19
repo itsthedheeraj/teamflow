@@ -98,6 +98,9 @@ async function login({ email, password }) {
     throw e;
   }
 
+  // Clear any pending token revocations for this user on successful login
+  await pool.query(`DELETE FROM token_revocations WHERE user_id = $1`, [row.id]);
+
   const token = signToken(row.id, row.org_id || null, row.role || null);
   return {
     token,

@@ -3,7 +3,7 @@ const { param, validationResult } = require('express-validator');
 const { verifyJWT } = require('../middleware/verifyJWT');
 const { verifyOrgMembership } = require('../middleware/verifyOrgMembership');
 const { setOrgContext } = require('../middleware/setOrgContext');
-const { listUnreadNotifications, markNotificationAsRead } = require('../services/notificationService');
+const { listUnreadNotifications, markNotificationAsRead, deleteNotification } = require('../services/notificationService');
 
 const router = Router();
 const authChain = [verifyJWT];
@@ -47,5 +47,15 @@ router.patch(
     }
   }
 );
+
+// DELETE /api/notifications/:id
+router.delete('/:id', authChain, async (req, res, next) => {
+  try {
+    await deleteNotification(req.dbClient, req.params.id, req.user.userId);
+    res.json({ success: true });
+  } catch (err) {
+    next(err);
+  }
+});
 
 module.exports = router;

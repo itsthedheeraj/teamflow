@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MailOpen, Check, X, Bell, ExternalLink } from 'lucide-react';
+import { MailOpen, Check, X, Bell, ExternalLink, Trash2 } from 'lucide-react';
 import { api } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
 import { useUI } from '../context/UIContext';
@@ -62,10 +62,22 @@ export default function MyInvitesPage() {
   async function handleReadNotification(id, link) {
     try {
       await api.patch(`/notifications/${id}/read`);
-      setNotifications(notifications.filter(n => n.id !== id));
+      setNotifications(notifications.map(n => 
+        n.id === id ? { ...n, is_read: true } : n
+      ));
       if (link) {
         navigate(link);
       }
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
+  }
+
+  async function handleDeleteNotification(id) {
+    try {
+      await api.delete(`/notifications/${id}`);
+      setNotifications(notifications.filter(n => n.id !== id));
+      showToast('Notification deleted', 'success');
     } catch (err) {
       showToast(err.message, 'error');
     }
@@ -132,7 +144,7 @@ export default function MyInvitesPage() {
         <section className="space-y-4">
           <h2 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
             <Bell size={18} className="text-gray-500" />
-            Unread Notifications
+            Notifications
           </h2>
           <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
             {notifications.length === 0 ? (
@@ -142,9 +154,9 @@ export default function MyInvitesPage() {
             ) : (
               <ul className="divide-y divide-gray-100">
                 {notifications.map((notif) => (
-                  <li key={notif.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-5 py-4 hover:bg-gray-50 transition-colors">
+                  <li key={notif.id} className={`flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-5 py-4 transition-colors ${notif.is_read ? 'bg-gray-50 opacity-75' : 'hover:bg-gray-50'}`}>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm text-gray-900">{notif.message}</p>
+                      <p className={`text-sm ${notif.is_read ? 'text-gray-600' : 'text-gray-900 font-medium'}`}>{notif.message}</p>
                       <p className="text-xs text-gray-400 mt-1">
                         {new Date(notif.created_at).toLocaleString()}
                       </p>
@@ -160,12 +172,21 @@ export default function MyInvitesPage() {
                           View
                         </button>
                       )}
+                      {!notif.is_read && (
+                        <button
+                          onClick={() => handleReadNotification(notif.id)}
+                          className="flex items-center gap-1.5 bg-white border border-gray-300 text-gray-700 px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-gray-50 transition-colors"
+                        >
+                          <Check size={14} />
+                          Mark Read
+                        </button>
+                      )}
                       <button
-                        onClick={() => handleReadNotification(notif.id)}
-                        className="flex items-center gap-1.5 bg-white border border-gray-300 text-gray-700 px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-gray-50 transition-colors"
+                        onClick={() => handleDeleteNotification(notif.id)}
+                        className="flex items-center gap-1.5 bg-white border border-gray-300 text-red-600 px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-red-50 transition-colors"
+                        title="Delete Notification"
                       >
-                        <Check size={14} />
-                        Mark Read
+                        <Trash2 size={14} />
                       </button>
                     </div>
                   </li>

@@ -55,7 +55,7 @@ export default function SidebarOrgSwitcher() {
   }, []);
 
   async function handleSwitch(orgId) {
-    if (orgId === auth.org.id) { setOpen(false); return; }
+    if (orgId === auth?.org?.id) { setOpen(false); return; }
     setSwitching(true);
     try {
       const data = await api.post('/auth/switch-org', { orgId });

@@ -1,7 +1,7 @@
 const pool = require('../db/pool');
 const crypto = require('crypto');
 const { sendInviteEmail } = require('../lib/email');
-const { decrementMembers } = require('./meteringService');
+const { decrementMembers, incrementMembers } = require('./meteringService');
 
 /**
  * Team Service — org member management.
@@ -215,20 +215,23 @@ async function acceptOrgTransfer({ token, userId }) {
       throw e;
     }
 
-    // Demote old owner to admin
+    // Demote old owner to member
     await client.query(
-      `UPDATE org_members SET role = 'admin' WHERE org_id = $1 AND user_id = $2`,
+      `UPDATE org_members SET role = 'member' WHERE org_id = $1 AND user_id = $2`,
       [req.org_id, req.from_user_id]
     );
 
     // Promote new owner (insert if they aren't in the org yet)
-    await client.query(
+    const insertResult = await client.query(
       `INSERT INTO org_members (org_id, user_id, role)
        VALUES ($1, $2, 'owner')
        ON CONFLICT (org_id, user_id)
-       DO UPDATE SET role = 'owner'`,
+       DO UPDATE SET role = 'owner'
+       RETURNING xmax`, // PostgreSQL system column, 0 for insert, non-zero for update
       [req.org_id, userId]
     );
+    
+    const wasInserted = insertResult.rows.length > 0 && insertResult.rows[0].xmax == 0;
 
     // Mark request as accepted
     await client.query(
@@ -246,7 +249,22 @@ async function acceptOrgTransfer({ token, userId }) {
       [req.from_user_id, req.org_id, `Ownership of ${orgName} has been successfully transferred to ${req.to_email}.`]
     );
 
+    // Revoke token for the old owner only to force re-login
+    await client.query(
+      `INSERT INTO token_revocations (user_id)
+       VALUES ($1)
+       ON CONFLICT (user_id) DO UPDATE SET revoked_at = NOW()`,
+      [req.from_user_id]
+    );
+
     await client.query('COMMIT');
+    
+    // Redis operations must run after DB commit to prevent race conditions
+    // where the counter increments but the DB transaction rolls back.
+    if (wasInserted) {
+      await incrementMembers(req.org_id);
+    }
+    
     return { success: true, orgId: req.org_id };
   } catch (err) {
     await client.query('ROLLBACK');

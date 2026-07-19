@@ -28,6 +28,8 @@ export default function App() {
           <Route path="/signup" element={<SignupPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/accept-invite" element={<AcceptInvitePage />} />
+          {/* Transfer org — accessible without an active workspace */}
+          <Route path="/transfer-org/:token" element={<TransferOrgPage />} />
 
           {/* Protected routes — ProtectedRoute redirects to /login if not authed */}
           <Route element={<ProtectedRoute />}>
@@ -38,7 +40,6 @@ export default function App() {
             <Route path="/team" element={<TeamPage />} />
             <Route path="/billing" element={<BillingPage />} />
             <Route path="/settings" element={<SettingsPage />} />
-            <Route path="/transfer-org/:token" element={<TransferOrgPage />} />
           </Route>
 
           {/* Unknown routes go back to the front door, not login */}

@@ -28,7 +28,7 @@ async function request(path, options = {}) {
     localStorage.removeItem('token');
     localStorage.removeItem('auth');
     window.location.href = '/login';
-    return;
+    return new Promise(() => {}); // Halt execution so calling code doesn't crash on undefined
   }
 
   if (res.status === 403) {
