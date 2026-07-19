@@ -8,6 +8,7 @@ import {
   Zap,
   Menu,
   X,
+  MailOpen,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import SidebarOrgSwitcher from './SidebarOrgSwitcher';
@@ -31,7 +32,8 @@ import SidebarUsageWidget from './SidebarUsageWidget';
 
 const NAV_LINKS = [
   { to: '/projects', label: 'Projects', Icon: FolderOpen },
-  { to: '/team',     label: 'Team',     Icon: Users,      minRole: 'admin' },
+  { to: '/invites',  label: 'My Invites', Icon: MailOpen },
+  { to: '/team',     label: 'Team & Invites', Icon: Users, minRole: 'admin' },
   { to: '/billing',  label: 'Billing',  Icon: CreditCard, minRole: 'owner' },
 ];
 
@@ -70,7 +72,7 @@ export default function Layout({ children }) {
     navigate('/login');
   }
 
-  const userInitial = auth?.user?.email?.[0]?.toUpperCase() ?? '?';
+  const userInitial = auth?.user?.name?.[0]?.toUpperCase() || auth?.user?.email?.[0]?.toUpperCase() || '?';
 
   // ── Sidebar contents (shared between desktop and mobile overlay) ──
   const sidebarContents = (
@@ -134,9 +136,16 @@ export default function Layout({ children }) {
           <div className="w-7 h-7 rounded-full bg-brand-100 text-brand-700 text-xs font-bold flex items-center justify-center flex-shrink-0">
             {userInitial}
           </div>
-          <span className="flex-1 text-xs text-gray-600 truncate min-w-0">
-            {auth?.user?.email}
-          </span>
+          <div className="flex-1 min-w-0 flex flex-col justify-center">
+            {auth?.user?.name && (
+              <span className="text-sm font-medium text-gray-900 truncate leading-tight">
+                {auth.user.name}
+              </span>
+            )}
+            <span className={`text-xs text-gray-500 truncate leading-tight ${auth?.user?.name ? 'mt-0.5' : ''}`}>
+              {auth?.user?.email}
+            </span>
+          </div>
           <button
             onClick={handleLogout}
             title="Sign out"

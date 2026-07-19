@@ -35,7 +35,7 @@ const authChain = [verifyJWT, verifyOrgMembership, setOrgContext];
 // ─────────────────────────────────────────────
 router.get('/', authChain, async (req, res, next) => {
   try {
-    const projects = await listProjects(req.dbClient);
+    const projects = await listProjects(req.dbClient, req.user.userId);
     res.json({ projects });
   } catch (err) {
     next(err);
@@ -67,6 +67,7 @@ router.get(
 router.post(
   '/',
   authChain,
+  requireRole('admin'), // Workspace Admin only
   [body('name').trim().isLength({ min: 1, max: 100 }).withMessage('Project name is required')],
   async (req, res, next) => {
     if (!validate(req, res)) return;
@@ -75,6 +76,7 @@ router.post(
         orgId: req.user.orgId,
         name: req.body.name,
         description: req.body.description,
+        teamLeadId: req.body.team_lead_id || null,
         createdBy: req.user.userId,
       });
       res.status(201).json({ project });
@@ -94,8 +96,18 @@ router.patch(
   async (req, res, next) => {
     if (!validate(req, res)) return;
     try {
+      // Must fetch project first to verify if user is Team Lead
+      const existingProject = await getProject(req.dbClient, req.params.id);
+      if (!existingProject) return res.status(404).json({ error: 'Project not found' });
+      
+      const isAdmin = req.user.role === 'admin' || req.user.role === 'owner';
+      const isTeamLead = existingProject.team_lead_id === req.user.userId;
+      
+      if (!isAdmin && !isTeamLead) {
+        return res.status(403).json({ error: 'You do not have permission to edit this project' });
+      }
+
       const project = await updateProject(req.dbClient, req.params.id, req.body);
-      if (!project) return res.status(404).json({ error: 'Project not found' });
       res.json({ project });
     } catch (err) {
       next(err);

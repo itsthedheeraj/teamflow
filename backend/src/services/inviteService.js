@@ -115,7 +115,7 @@ async function createInvite({ orgId, invitedBy, email, role = 'member' }) {
  * Creates their account if new, or just adds them to the org if they
  * already have an account.
  */
-async function acceptInvite({ token, password }) {
+async function acceptInvite({ token, password, name }) {
   // 1. Verify JWT signature and expiry
   let payload;
   try {
@@ -178,10 +178,15 @@ async function acceptInvite({ token, password }) {
         e.status = 400;
         throw e;
       }
+      if (!name) {
+        const e = new Error('Name is required for new accounts');
+        e.status = 400;
+        throw e;
+      }
       const hash = await bcrypt.hash(password, 12);
       const { rows: [newUser] } = await client.query(
-        `INSERT INTO users (email, password_hash) VALUES ($1, $2) RETURNING id, email`,
-        [invite.email, hash]
+        `INSERT INTO users (email, password_hash, name) VALUES ($1, $2, $3) RETURNING id, email, name`,
+        [invite.email, hash, name]
       );
       user = newUser;
     }
@@ -269,4 +274,44 @@ async function revokeInvite({ orgId, inviteId }) {
   return rows[0];
 }
 
-module.exports = { createInvite, acceptInvite, listInvites, revokeInvite };
+/**
+ * getMyPendingInvites()
+ * Returns all pending invites sent to the user's email.
+ */
+async function getMyPendingInvites(userId) {
+  const { rows } = await pool.query(
+    `SELECT it.id, it.token, it.role, it.expires_at, o.name AS org_name, u.email AS inviter_email
+     FROM invite_tokens it
+     JOIN organizations o ON o.id = it.org_id
+     JOIN users u ON u.id = it.invited_by
+     WHERE it.email = (SELECT email FROM users WHERE id = $1)
+       AND it.accepted_at IS NULL
+       AND it.expires_at > NOW()
+     ORDER BY it.created_at DESC`,
+    [userId]
+  );
+  return rows;
+}
+
+/**
+ * declinePendingInvite()
+ * Declines (deletes) an invite using its token, ensuring the token belongs to the user.
+ */
+async function declinePendingInvite(userId, token) {
+  const { rows } = await pool.query(
+    `DELETE FROM invite_tokens
+     WHERE token = $1 
+       AND email = (SELECT email FROM users WHERE id = $2)
+       AND accepted_at IS NULL
+     RETURNING id`,
+    [token, userId]
+  );
+  if (rows.length === 0) {
+    const e = new Error('Invite not found or already accepted/declined');
+    e.status = 404;
+    throw e;
+  }
+  return rows[0];
+}
+
+module.exports = { createInvite, acceptInvite, listInvites, revokeInvite, getMyPendingInvites, declinePendingInvite };

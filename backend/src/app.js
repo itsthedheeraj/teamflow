@@ -14,6 +14,7 @@ const taskRoutes    = require('./routes/tasks');
 const billingRoutes = require('./routes/billing');
 const webhookRoutes = require('./routes/webhook');
 const usageRoutes   = require('./routes/usage');
+const notificationRoutes = require('./routes/notifications');
 
 const app = express();
 
@@ -56,6 +57,7 @@ app.use('/api/team',     teamRoutes);
 app.use('/api/tasks',    taskRoutes);
 app.use('/api/billing',  billingRoutes);
 app.use('/api/usage',    usageRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 // Health check
 app.get('/health', (req, res) => res.json({ status: 'ok' }));

@@ -155,4 +155,88 @@ function escapeHtml(str) {
     .replace(/"/g, '&quot;');
 }
 
-module.exports = { sendInviteEmail };
+async function sendTaskAssignedEmail({ toEmail, taskTitle, projectName, orgName, taskUrl, assignerEmail }) {
+  if (!process.env.RESEND_API_KEY || process.env.RESEND_API_KEY === 're_REPLACE_ME') {
+    console.log('[email] RESEND_API_KEY not set — skipping task assignment email send.');
+    return false;
+  }
+
+  const textBody = [
+    `${assignerEmail} assigned a task to you in ${projectName} (${orgName}).`,
+    '',
+    `Task: ${taskTitle}`,
+    '',
+    'View task here:',
+    taskUrl,
+  ].join('\n');
+
+  const htmlBody = `
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f9fafb;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f9fafb;padding:40px 0;">
+    <tr>
+      <td align="center">
+        <table width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#ffffff;border-radius:12px;border:1px solid #e5e7eb;padding:40px;">
+          <tr>
+            <td>
+              <p style="margin:0 0 28px;font-size:20px;font-weight:700;color:#111827;">TeamFlow</p>
+              <h1 style="margin:0 0 12px;font-size:22px;font-weight:600;color:#111827;line-height:1.3;">
+                New task assigned to you
+              </h1>
+              <p style="margin:0 0 24px;font-size:15px;color:#6b7280;line-height:1.6;">
+                <strong style="color:#374151;">${escapeHtml(assignerEmail)}</strong> assigned you a task in
+                <strong style="color:#374151;">${escapeHtml(projectName)}</strong>
+                (<span style="color:#374151;">${escapeHtml(orgName)}</span>).
+              </p>
+              <div style="background:#f3f4f6;padding:16px;border-radius:8px;margin-bottom:24px;">
+                <p style="margin:0;font-size:15px;color:#111827;font-weight:500;">
+                  ${escapeHtml(taskTitle)}
+                </p>
+              </div>
+              <table cellpadding="0" cellspacing="0" style="margin:0 0 28px;">
+                <tr>
+                  <td style="background:#2563eb;border-radius:8px;">
+                    <a href="${taskUrl}"
+                       style="display:inline-block;padding:12px 28px;color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;border-radius:8px;">
+                      View Task
+                    </a>
+                  </td>
+                </tr>
+              </table>
+              <p style="margin:24px 0 0;padding-top:20px;border-top:1px solid #f3f4f6;font-size:12px;color:#d1d5db;">
+                You are receiving this email because you are a member of ${escapeHtml(orgName)} on TeamFlow.
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`.trim();
+
+  try {
+    const { data, error } = await resend.emails.send({
+      from: FROM_ADDRESS,
+      to: [toEmail],
+      subject: `Task assigned: ${taskTitle}`,
+      text: textBody,
+      html: htmlBody,
+    });
+
+    if (error) {
+      console.error('[email] Resend API error — task email not sent:', error);
+      return false;
+    }
+
+    console.log(`[email] Task assignment email sent to ${toEmail} (Resend id: ${data?.id})`);
+    return true;
+  } catch (err) {
+    console.error('[email] Failed to send task email — unexpected error:', err.message);
+    return false;
+  }
+}
+
+module.exports = { sendInviteEmail, sendTaskAssignedEmail };

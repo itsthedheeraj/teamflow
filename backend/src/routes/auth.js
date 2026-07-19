@@ -1,7 +1,7 @@
 const { Router } = require('express');
 const { body, validationResult } = require('express-validator');
 const { signup, login, switchOrg, getMyOrgs } = require('../services/authService');
-const { acceptInvite } = require('../services/inviteService');
+const { acceptInvite, getMyPendingInvites, declinePendingInvite } = require('../services/inviteService');
 const { verifyJWT } = require('../middleware/verifyJWT');
 
 const router = Router();
@@ -24,6 +24,7 @@ function validate(req, res) {
 router.post(
   '/signup',
   [
+    body('name').trim().notEmpty().withMessage('Name is required'),
     body('email').isEmail().withMessage('Valid email is required'),
     body('password')
       .isLength({ min: 8 })
@@ -101,6 +102,32 @@ router.get('/me/orgs', verifyJWT, async (req, res, next) => {
   }
 });
 
+// ─────────────────────────────────────────────
+// GET /api/auth/me/invites
+// Returns pending invites sent to the authenticated user's email.
+// ─────────────────────────────────────────────
+router.get('/me/invites', verifyJWT, async (req, res, next) => {
+  try {
+    const invites = await getMyPendingInvites(req.user.userId);
+    res.json({ invites });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ─────────────────────────────────────────────
+// DELETE /api/auth/me/invites/:token
+// Declines a pending invite.
+// ─────────────────────────────────────────────
+router.delete('/me/invites/:token', verifyJWT, async (req, res, next) => {
+  try {
+    await declinePendingInvite(req.user.userId, req.params.token);
+    res.json({ message: 'Invite declined' });
+  } catch (err) {
+    next(err);
+  }
+});
+
 module.exports = router;
 
 // ─────────────────────────────────────────────
@@ -113,6 +140,7 @@ router.post(
   '/accept-invite',
   [
     body('token').notEmpty().withMessage('Invite token is required'),
+    body('name').optional().trim(),
     body('password')
       .optional()
       .isLength({ min: 8 })
@@ -123,6 +151,7 @@ router.post(
     try {
       const result = await acceptInvite({
         token: req.body.token,
+        name: req.body.name,
         password: req.body.password,
       });
       res.status(201).json(result);

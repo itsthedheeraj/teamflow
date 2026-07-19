@@ -36,7 +36,7 @@ function signToken(userId, orgId, role) {
  * All four inserts are wrapped in a transaction so a partial failure
  * (e.g., slug collision) doesn't leave orphaned users or orgs.
  */
-async function signup({ email, password, orgName }) {
+async function signup({ name, email, password, orgName }) {
   const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
 
   // Slugify: "Acme Corp" → "acme-corp", then append a short random suffix
@@ -54,10 +54,10 @@ async function signup({ email, password, orgName }) {
 
     // 1. Create user
     const { rows: [user] } = await client.query(
-      `INSERT INTO users (email, password_hash)
-       VALUES ($1, $2)
-       RETURNING id, email, created_at`,
-      [email.toLowerCase().trim(), passwordHash]
+      `INSERT INTO users (email, password_hash, name)
+       VALUES ($1, $2, $3)
+       RETURNING id, email, name, created_at`,
+      [email.toLowerCase().trim(), passwordHash, name]
     );
 
     // 2. Create organization
@@ -104,7 +104,7 @@ async function signup({ email, password, orgName }) {
  */
 async function login({ email, password }) {
   const { rows } = await pool.query(
-    `SELECT u.id, u.email, u.password_hash,
+    `SELECT u.id, u.email, u.password_hash, u.name,
             om.org_id, om.role,
             o.name  AS org_name,
             o.slug  AS org_slug,
@@ -135,7 +135,7 @@ async function login({ email, password }) {
   const token = signToken(row.id, row.org_id, row.role);
   return {
     token,
-    user: { id: row.id, email: row.email },
+    user: { id: row.id, email: row.email, name: row.name },
     org: {
       id: row.org_id,
       name: row.org_name,

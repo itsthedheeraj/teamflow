@@ -20,7 +20,9 @@ async function listTasks(client, { projectId } = {}) {
             t.status, t.created_at, t.updated_at,
             t.assigned_to,
             u_assigned.email AS assigned_to_email,
+            u_assigned.name  AS assigned_to_name,
             u_created.email  AS created_by_email,
+            u_created.name   AS created_by_name,
             t.created_by
      FROM tasks t
      LEFT JOIN users u_assigned ON u_assigned.id = t.assigned_to
@@ -38,7 +40,9 @@ async function getTask(client, taskId) {
             t.status, t.created_at, t.updated_at,
             t.assigned_to,
             u_assigned.email AS assigned_to_email,
+            u_assigned.name  AS assigned_to_name,
             u_created.email  AS created_by_email,
+            u_created.name   AS created_by_name,
             t.created_by
      FROM tasks t
      LEFT JOIN users u_assigned ON u_assigned.id = t.assigned_to

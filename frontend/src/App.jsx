@@ -10,6 +10,7 @@ import TeamPage from './pages/TeamPage';
 import ProjectsPage from './pages/ProjectsPage';
 import TaskBoardPage from './pages/TaskBoardPage';
 import BillingPage from './pages/BillingPage';
+import MyInvitesPage from './pages/MyInvitesPage';
 
 export default function App() {
   return (
@@ -29,6 +30,7 @@ export default function App() {
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/projects" element={<ProjectsPage />} />
           <Route path="/projects/:projectId" element={<TaskBoardPage />} />
+          <Route path="/invites" element={<MyInvitesPage />} />
           <Route path="/team" element={<TeamPage />} />
           <Route path="/billing" element={<BillingPage />} />
         </Route>

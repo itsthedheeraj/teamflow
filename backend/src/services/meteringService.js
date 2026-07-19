@@ -93,12 +93,31 @@ async function syncMemberCount(orgId, dbClient) {
 }
 
 async function syncTaskCount(orgId, dbClient) {
-  const db = dbClient || pool;
-  const { rows } = await db.query(
-    `SELECT COUNT(*) AS cnt FROM tasks WHERE org_id = $1`,
-    [orgId]
-  );
-  const count = parseInt(rows[0].cnt, 10);
+  let count = 0;
+  if (dbClient) {
+    const { rows } = await dbClient.query(
+      `SELECT COUNT(*) AS cnt FROM tasks WHERE org_id = $1`,
+      [orgId]
+    );
+    count = parseInt(rows[0].cnt, 10);
+  } else {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query('SELECT set_config(\'app.current_org_id\', $1, true)', [orgId]);
+      const { rows } = await client.query(
+        `SELECT COUNT(*) AS cnt FROM tasks WHERE org_id = $1`,
+        [orgId]
+      );
+      await client.query('COMMIT');
+      count = parseInt(rows[0].cnt, 10);
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  }
   await redis.set(taskKey(orgId), count);
   return count;
 }

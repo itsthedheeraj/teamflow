@@ -29,7 +29,6 @@ export default function TeamPage() {
   const [members, setMembers]       = useState([]);
   const [invites, setInvites]       = useState([]);
   const [inviteEmail, setInviteEmail] = useState('');
-  const [inviteRole, setInviteRole]   = useState('member');
   const [error, setError]     = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
@@ -61,7 +60,7 @@ export default function TeamPage() {
     setError(''); setSuccess('');
     setLoading(true);
     try {
-      await api.post('/team/invite', { email: inviteEmail, role: inviteRole });
+      await api.post('/team/invite', { email: inviteEmail, role: 'member' });
       setSuccess(`Invite sent to ${inviteEmail}.`);
       setInviteEmail('');
       loadTeam();
@@ -139,14 +138,6 @@ export default function TeamPage() {
                 className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 min-w-0"
               />
               <div className="flex gap-2">
-                <select
-                  value={inviteRole}
-                  onChange={(e) => setInviteRole(e.target.value)}
-                  className="flex-1 sm:flex-none border border-gray-300 rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white"
-                >
-                  <option value="member">Member</option>
-                  <option value="admin">Admin</option>
-                </select>
                 <button
                   type="submit"
                   disabled={loading}
@@ -173,7 +164,7 @@ export default function TeamPage() {
 
           <ul className="divide-y divide-gray-100">
             {members.map((m) => {
-              const initial  = m.email[0]?.toUpperCase() ?? '?';
+              const initial  = m.name?.[0]?.toUpperCase() || m.email[0]?.toUpperCase() || '?';
               const bgColor  = avatarColor(m.email);
               const isSelf   = m.user_id === auth?.user?.id;
               const isOwnerRow = m.role === 'owner';
@@ -193,13 +184,18 @@ export default function TeamPage() {
                   {/* Email + joined date */}
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-gray-900 truncate">
-                      {m.email}
+                      {m.name || m.email}
                       {isSelf && (
                         <span className="ml-2 text-xs text-gray-400 font-normal">
                           (you)
                         </span>
                       )}
                     </p>
+                    {m.name && (
+                      <p className="text-xs text-gray-500 truncate mt-0.5">
+                        {m.email}
+                      </p>
+                    )}
                     <p className="text-xs text-gray-400 mt-0.5">
                       Joined {new Date(m.created_at).toLocaleDateString()}
                     </p>
@@ -207,25 +203,11 @@ export default function TeamPage() {
 
                   {/* Right side: role + actions */}
                   <div className="flex items-center gap-2 flex-shrink-0">
-                    {/* Owner row always gets a static pill */}
-                    {isOwnerRow || isSelf || !isOwner ? (
-                      <span
-                        className={`text-xs font-medium px-2 py-0.5 rounded-full capitalize ${ROLE_PILL[m.role]}`}
-                      >
-                        {m.role}
-                      </span>
-                    ) : (
-                      /* Owner can change other members' roles */
-                      <select
-                        value={m.role}
-                        onChange={(e) => handleRoleChange(m.user_id, e.target.value)}
-                        className="text-xs border border-gray-200 rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-brand-500 bg-white"
-                      >
-                        <option value="member">Member</option>
-                        <option value="admin">Admin</option>
-                        <option value="owner">Owner</option>
-                      </select>
-                    )}
+                    <span
+                      className={`text-xs font-medium px-2 py-0.5 rounded-full capitalize ${ROLE_PILL[m.role]}`}
+                    >
+                      {m.role}
+                    </span>
 
                     {/* Trash icon — admin/owner can remove non-owners who aren't themselves */}
                     {isAdmin && !isSelf && !isOwnerRow && (

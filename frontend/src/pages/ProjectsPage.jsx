@@ -7,33 +7,40 @@ import Layout from '../components/Layout';
 export default function ProjectsPage() {
   const { auth } = useAuth();
   const [projects, setProjects] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
+  const [teamLeadId, setTeamLeadId] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [teamMembers, setTeamMembers] = useState([]);
 
   const canManage = auth?.role === 'admin' || auth?.role === 'owner';
 
-  async function loadProjects() {
+  async function loadData() {
     try {
-      const data = await api.get('/projects');
-      setProjects(data.projects || []);
+      const [projectsRes, teamRes] = await Promise.all([
+        api.get('/projects'),
+        canManage ? api.get('/team/members') : Promise.resolve({ members: [] }),
+      ]);
+      setProjects(projectsRes.projects || []);
+      setTeamMembers(teamRes.members || []);
     } catch (err) {
       setError(err.message);
     }
   }
 
-  useEffect(() => { loadProjects(); }, []);
+  useEffect(() => { loadData(); }, []);
 
   async function handleCreate(e) {
     e.preventDefault();
     setError('');
     setLoading(true);
     try {
-      await api.post('/projects', { name, description });
-      setName(''); setDescription(''); setShowForm(false);
-      loadProjects();
+      await api.post('/projects', { name, description, team_lead_id: teamLeadId });
+      setName(''); setDescription(''); setTeamLeadId(''); setShowForm(false);
+      loadData();
     } catch (err) {
       setError(err.message);
     } finally {
@@ -45,25 +52,47 @@ export default function ProjectsPage() {
     if (!window.confirm('Delete this project and all its tasks?')) return;
     try {
       await api.delete(`/projects/${id}`);
-      loadProjects();
+      loadData();
     } catch (err) {
       setError(err.message);
     }
   }
+
+  // Categorize projects for display
+  const filteredProjects = projects.filter(p => {
+    if (!searchQuery) return true;
+    const q = searchQuery.toLowerCase();
+    return (p.name && p.name.toLowerCase().includes(q)) ||
+           (p.description && p.description.toLowerCase().includes(q));
+  });
+
+  const allProjects = filteredProjects;
+  const myLedProjects = filteredProjects.filter(p => p.team_lead_id === auth?.user?.id);
+  const myAssignedProjects = filteredProjects.filter(p => p.has_assigned_tasks && p.team_lead_id !== auth?.user?.id);
+  const otherProjects = filteredProjects.filter(p => p.team_lead_id !== auth?.user?.id && !p.has_assigned_tasks);
 
   return (
     <Layout>
       <div className="max-w-4xl mx-auto space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <h1 className="text-2xl font-bold text-gray-900">Projects</h1>
-          {canManage && (
-            <button
-              onClick={() => setShowForm((v) => !v)}
-              className="self-start sm:self-auto bg-brand-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-brand-700 whitespace-nowrap"
-            >
-              + New project
-            </button>
-          )}
+          <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+            <input
+              type="text"
+              placeholder="Search projects..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full sm:w-64 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+            />
+            {canManage && (
+              <button
+                onClick={() => setShowForm((v) => !v)}
+                className="self-start sm:self-auto bg-brand-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-brand-700 whitespace-nowrap shrink-0"
+              >
+                + New project
+              </button>
+            )}
+          </div>
         </div>
 
         {error && (
@@ -93,6 +122,19 @@ export default function ProjectsPage() {
               rows={2}
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none resize-none"
             />
+            {canManage && (
+              <select
+                value={teamLeadId}
+                onChange={(e) => setTeamLeadId(e.target.value)}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+                required
+              >
+                <option value="" disabled>Select a Team Lead</option>
+                {teamMembers.map(m => (
+                  <option key={m.user_id} value={m.user_id}>{m.name ? `${m.name} (${m.email})` : m.email} ({m.role})</option>
+                ))}
+              </select>
+            )}
             <div className="flex gap-3">
               <button
                 type="submit"
@@ -120,42 +162,79 @@ export default function ProjectsPage() {
               <p className="mt-1 text-sm">Create your first project above.</p>
             )}
           </div>
+        ) : canManage ? (
+          <div className="space-y-4">
+            <h2 className="text-lg font-semibold text-gray-800">All Projects</h2>
+            <div className="grid gap-4 sm:grid-cols-2">
+              {allProjects.map((p) => <ProjectCard key={p.id} project={p} canManage={canManage} handleDelete={handleDelete} />)}
+            </div>
+          </div>
         ) : (
-          <div className="grid gap-4 sm:grid-cols-2">
-            {projects.map((p) => (
-              <div
-                key={p.id}
-                className="bg-white border border-gray-200 rounded-xl p-5 hover:shadow-sm transition-shadow"
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <Link
-                    to={`/projects/${p.id}`}
-                    className="font-semibold text-gray-900 hover:text-brand-600 leading-snug"
-                  >
-                    {p.name}
-                  </Link>
-                  {canManage && (
-                    <button
-                      onClick={() => handleDelete(p.id)}
-                      className="text-xs text-red-400 hover:text-red-600 flex-shrink-0 mt-0.5"
-                    >
-                      Delete
-                    </button>
-                  )}
+          <div className="space-y-8">
+            {myLedProjects.length > 0 && (
+              <div className="space-y-4">
+                <h2 className="text-lg font-semibold text-gray-800">Projects I Lead</h2>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  {myLedProjects.map((p) => <ProjectCard key={p.id} project={p} canManage={canManage} handleDelete={handleDelete} />)}
                 </div>
-                {p.description && (
-                  <p className="mt-1.5 text-sm text-gray-500 line-clamp-2">
-                    {p.description}
-                  </p>
-                )}
-                <p className="mt-3 text-xs text-gray-400">
-                  Created {new Date(p.created_at).toLocaleDateString()}
-                </p>
               </div>
-            ))}
+            )}
+            {myAssignedProjects.length > 0 && (
+              <div className="space-y-4">
+                <h2 className="text-lg font-semibold text-gray-800">Projects I'm Collaborating On</h2>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  {myAssignedProjects.map((p) => <ProjectCard key={p.id} project={p} canManage={canManage} handleDelete={handleDelete} />)}
+                </div>
+              </div>
+            )}
+            {otherProjects.length > 0 && (
+              <div className="space-y-4 opacity-60">
+                <h2 className="text-lg font-semibold text-gray-800">Other Workspace Projects</h2>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  {otherProjects.map((p) => <ProjectCard key={p.id} project={p} locked={true} />)}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
     </Layout>
+  );
+}
+
+function ProjectCard({ project, canManage, handleDelete, locked }) {
+  return (
+    <div className={`bg-white border border-gray-200 rounded-xl p-5 transition-shadow ${locked ? 'cursor-not-allowed bg-gray-50' : 'hover:shadow-sm'}`}>
+      <div className="flex items-start justify-between gap-2">
+        {locked ? (
+          <span className="font-semibold text-gray-500 leading-snug flex items-center gap-2" title="You don't have permission to access this project">
+            🔒 {project.name}
+          </span>
+        ) : (
+          <Link
+            to={`/projects/${project.id}`}
+            className="font-semibold text-gray-900 hover:text-brand-600 leading-snug"
+          >
+            {project.name}
+          </Link>
+        )}
+        {canManage && !locked && handleDelete && (
+          <button
+            onClick={() => handleDelete(project.id)}
+            className="text-xs text-red-400 hover:text-red-600 flex-shrink-0 mt-0.5"
+          >
+            Delete
+          </button>
+        )}
+      </div>
+      {project.description && (
+        <p className="mt-1.5 text-sm text-gray-500 line-clamp-2">
+          {project.description}
+        </p>
+      )}
+      <p className="mt-3 text-xs text-gray-400">
+        Created {new Date(project.created_at).toLocaleDateString()}
+      </p>
+    </div>
   );
 }

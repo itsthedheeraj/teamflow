@@ -25,7 +25,7 @@ export default function TaskBoardPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const canManage = auth?.role === 'admin' || auth?.role === 'owner';
+  const canManage = auth?.role === 'admin' || auth?.role === 'owner' || project?.team_lead_id === auth?.user?.id;
 
   async function load() {
     try {
@@ -125,12 +125,14 @@ export default function TaskBoardPage() {
               <p className="mt-1 text-sm text-gray-500">{project.description}</p>
             )}
           </div>
-          <button
-            onClick={() => { resetForm(); setShowForm(true); }}
-            className="bg-brand-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-brand-700"
-          >
-            + Add task
-          </button>
+          {canManage && (
+            <button
+              onClick={() => { resetForm(); setShowForm(true); }}
+              className="bg-brand-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-brand-700"
+            >
+              + Add task
+            </button>
+          )}
         </div>
 
         {error && (
@@ -172,7 +174,7 @@ export default function TaskBoardPage() {
                 <option value="">Unassigned</option>
                 {members.map((m) => (
                   <option key={m.user_id} value={m.user_id}>
-                    {m.email}
+                    {m.name ? `${m.name} (${m.email})` : m.email}
                   </option>
                 ))}
               </select>
@@ -240,12 +242,14 @@ function TaskCard({ task, canManage, onStatusChange, onEdit, onDelete, currentUs
       <div className="flex items-start justify-between gap-2">
         <p className="text-sm font-medium text-gray-900 leading-snug">{task.title}</p>
         <div className="flex gap-1.5 flex-shrink-0">
-          <button
-            onClick={() => onEdit(task)}
-            className="text-xs text-gray-400 hover:text-gray-700"
-          >
-            Edit
-          </button>
+          {canManage && (
+            <button
+              onClick={() => onEdit(task)}
+              className="text-xs text-gray-400 hover:text-gray-700"
+            >
+              Edit
+            </button>
+          )}
           {canManage && (
             <button
               onClick={() => onDelete(task.id)}
@@ -266,7 +270,11 @@ function TaskCard({ task, canManage, onStatusChange, onEdit, onDelete, currentUs
         <select
           value={task.status}
           onChange={(e) => onStatusChange(task.id, e.target.value)}
-          className="text-xs border border-gray-200 rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-brand-500"
+          disabled={!canManage && !isAssignedToMe}
+          className={`text-xs border border-gray-200 rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-brand-500 ${
+            !canManage && !isAssignedToMe ? 'opacity-50 cursor-not-allowed bg-gray-50' : ''
+          }`}
+          title={!canManage && !isAssignedToMe ? "You can only change the status of tasks assigned to you" : ""}
         >
           <option value="todo">To Do</option>
           <option value="in_progress">In Progress</option>
@@ -280,9 +288,9 @@ function TaskCard({ task, canManage, onStatusChange, onEdit, onDelete, currentUs
                 ? 'bg-brand-50 text-brand-600 font-medium'
                 : 'bg-gray-100 text-gray-500'
             }`}
-            title={task.assigned_to_email}
+            title={task.assigned_to_name ? `${task.assigned_to_name} (${task.assigned_to_email})` : task.assigned_to_email}
           >
-            {isAssignedToMe ? 'You' : task.assigned_to_email.split('@')[0]}
+            {isAssignedToMe ? 'You' : (task.assigned_to_name || task.assigned_to_email.split('@')[0])}
           </span>
         )}
       </div>

@@ -15,21 +15,20 @@
  */
 const { syncTaskCount } = require('./meteringService');
 
-async function listProjects(client) {
+async function listProjects(client, userId) {
   const { rows } = await client.query(
-    `SELECT id, org_id, name, description, created_by, created_at
-     FROM projects
-     ORDER BY created_at DESC`
-    // No WHERE org_id = ? needed — RLS enforces it at the DB layer.
-    // If you forget a WHERE clause here, Postgres still only returns
-    // rows belonging to the current org. That's the whole point.
+    `SELECT p.id, p.org_id, p.name, p.description, p.team_lead_id, p.created_by, p.created_at,
+            EXISTS(SELECT 1 FROM tasks t WHERE t.project_id = p.id AND t.assigned_to = $1) as has_assigned_tasks
+     FROM projects p
+     ORDER BY p.created_at DESC`,
+    [userId]
   );
   return rows;
 }
 
 async function getProject(client, projectId) {
   const { rows } = await client.query(
-    `SELECT id, org_id, name, description, created_by, created_at
+    `SELECT id, org_id, name, description, team_lead_id, created_by, created_at
      FROM projects
      WHERE id = $1`,
     [projectId]
@@ -39,24 +38,30 @@ async function getProject(client, projectId) {
   return rows[0] || null;
 }
 
-async function createProject(client, { orgId, name, description, createdBy }) {
+async function createProject(client, { orgId, name, description, teamLeadId, createdBy }) {
   const { rows } = await client.query(
-    `INSERT INTO projects (org_id, name, description, created_by)
-     VALUES ($1, $2, $3, $4)
-     RETURNING id, org_id, name, description, created_by, created_at`,
-    [orgId, name, description || null, createdBy]
+    `INSERT INTO projects (org_id, name, description, team_lead_id, created_by)
+     VALUES ($1, $2, $3, $4, $5)
+     RETURNING id, org_id, name, description, team_lead_id, created_by, created_at`,
+    [orgId, name, description || null, teamLeadId, createdBy]
   );
   return rows[0];
 }
 
-async function updateProject(client, projectId, { name, description }) {
+async function updateProject(client, projectId, { name, description, teamLeadId }) {
   const { rows } = await client.query(
     `UPDATE projects
-     SET name        = COALESCE($2, name),
-         description = COALESCE($3, description)
+     SET name         = COALESCE($2, name),
+         description  = COALESCE($3, description),
+         team_lead_id = COALESCE($4, team_lead_id)
      WHERE id = $1
-     RETURNING id, org_id, name, description, created_at`,
-    [projectId, name || null, description !== undefined ? description : null]
+     RETURNING id, org_id, name, description, team_lead_id, created_at`,
+    [
+      projectId,
+      name || null,
+      description !== undefined ? description : null,
+      teamLeadId !== undefined ? teamLeadId : null
+    ]
   );
   return rows[0] || null;
 }

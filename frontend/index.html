@@ -7,6 +7,14 @@
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      window.addEventListener('error', (e) => {
+        document.body.innerHTML += '<div style="color:red; background:white; position:fixed; top:0; left:0; padding:20px; z-index:9999; font-family:monospace; white-space:pre-wrap;">' + (e.error ? e.error.stack : e.message) + '</div>';
+      });
+      window.addEventListener('unhandledrejection', (e) => {
+        document.body.innerHTML += '<div style="color:red; background:white; position:fixed; top:0; left:0; padding:20px; z-index:9999; font-family:monospace; white-space:pre-wrap;">' + (e.reason ? e.reason.stack : e.reason) + '</div>';
+      });
+    </script>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

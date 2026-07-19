@@ -9,6 +9,7 @@ export default function AcceptInvitePage() {
   const { setAuth } = useAuth();
 
   const token = searchParams.get('token');
+  const [name, setName] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -26,7 +27,7 @@ export default function AcceptInvitePage() {
     setError('');
     setLoading(true);
     try {
-      const data = await api.post('/auth/accept-invite', { token, password });
+      const data = await api.post('/auth/accept-invite', { token, name, password });
       setAuth({
         token: data.token,
         user: data.user,
@@ -63,6 +64,19 @@ export default function AcceptInvitePage() {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
+              Full Name
+            </label>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Jane Doe"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
               Choose a password
             </label>
             <input
@@ -70,7 +84,6 @@ export default function AcceptInvitePage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Min. 8 characters"
-              required
               minLength={8}
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
             />

@@ -8,7 +8,7 @@ export default function SignupPage() {
   const navigate = useNavigate();
   const { setAuth } = useAuth();
 
-  const [form, setForm] = useState({ email: '', password: '', orgName: '' });
+  const [form, setForm] = useState({ name: '', email: '', password: '', orgName: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -63,6 +63,20 @@ export default function SignupPage() {
               {error}
             </div>
           )}
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Full Name
+            </label>
+            <input
+              name="name"
+              value={form.name}
+              onChange={handleChange}
+              placeholder="Jane Doe"
+              required
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+            />
+          </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">

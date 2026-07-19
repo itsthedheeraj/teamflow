@@ -15,7 +15,7 @@ const { decrementMembers } = require('./meteringService');
 async function listMembers(orgId) {
   const { rows } = await pool.query(
     `SELECT om.id, om.role, om.created_at,
-            u.id AS user_id, u.email
+            u.id AS user_id, u.email, u.name
      FROM org_members om
      JOIN users u ON u.id = om.user_id
      WHERE om.org_id = $1

@@ -11,6 +11,9 @@ const {
   updateTask,
   deleteTask,
 } = require('../services/taskService');
+const { getProject } = require('../services/projectService');
+const { sendTaskAssignedEmail } = require('../lib/email');
+const { createNotification } = require('../services/notificationService');
 
 const router = Router();
 
@@ -78,6 +81,16 @@ router.post(
   async (req, res, next) => {
     if (!validate(req, res)) return;
     try {
+      const project = await getProject(req.dbClient, req.body.projectId);
+      if (!project) return res.status(404).json({ error: 'Project not found' });
+
+      const isAdmin = req.user.role === 'admin' || req.user.role === 'owner';
+      const isTeamLead = project.team_lead_id === req.user.userId;
+
+      if (!isAdmin && !isTeamLead) {
+        return res.status(403).json({ error: 'Only Workspace Admins or Team Leads can create tasks' });
+      }
+
       const task = await createTask(req.dbClient, {
         orgId: req.user.orgId,
         projectId: req.body.projectId,
@@ -86,6 +99,35 @@ router.post(
         assignedTo: req.body.assignedTo,
         createdBy: req.user.userId,
       });
+
+      if (req.body.assignedTo && req.body.assignedTo !== req.user.userId) {
+        const hydratedTask = await getTask(req.dbClient, task.id);
+        if (hydratedTask && hydratedTask.assigned_to_email) {
+          const { rows: orgRows } = await req.dbClient.query(
+            'SELECT name FROM organizations WHERE id = $1',
+            [req.user.orgId]
+          );
+          const orgName = orgRows[0]?.name || 'TeamFlow Workspace';
+          const taskUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/projects/${project.id}`;
+          
+          sendTaskAssignedEmail({
+            toEmail: hydratedTask.assigned_to_email,
+            taskTitle: hydratedTask.title,
+            projectName: project.name,
+            orgName,
+            taskUrl,
+            assignerEmail: hydratedTask.created_by_email || 'A team member',
+          }).catch(console.error);
+
+          await createNotification(req.dbClient, {
+            userId: hydratedTask.assigned_to,
+            orgId: req.user.orgId,
+            message: `${hydratedTask.created_by_email || 'A team member'} assigned you a task in ${project.name}: ${hydratedTask.title}`,
+            link: `/projects/${project.id}`
+          }).catch(console.error);
+        }
+      }
+
       res.status(201).json({ task });
     } catch (err) {
       next(err);
@@ -110,8 +152,69 @@ router.patch(
   async (req, res, next) => {
     if (!validate(req, res)) return;
     try {
+      const existingTask = await getTask(req.dbClient, req.params.id);
+      if (!existingTask) return res.status(404).json({ error: 'Task not found' });
+
+      const project = await getProject(req.dbClient, existingTask.project_id);
+      if (!project) return res.status(404).json({ error: 'Project not found' });
+
+      const isAdmin = req.user.role === 'admin' || req.user.role === 'owner';
+      const isTeamLead = project.team_lead_id === req.user.userId;
+      const isAssigned = existingTask.assigned_to === req.user.userId;
+
+      if (!isAdmin && !isTeamLead) {
+        // Members can only edit status of tasks assigned to them
+        if (!isAssigned) {
+          return res.status(403).json({ error: 'You do not have permission to edit this task' });
+        }
+        
+        // Members cannot change title, description, or assignedTo
+        if (req.body.title !== undefined || req.body.description !== undefined || req.body.assignedTo !== undefined) {
+          return res.status(403).json({ error: 'Members can only update the status of their assigned tasks' });
+        }
+      }
+
       const task = await updateTask(req.dbClient, req.params.id, req.body);
       if (!task) return res.status(404).json({ error: 'Task not found' });
+
+      if (
+        req.body.assignedTo !== undefined && 
+        req.body.assignedTo !== null &&
+        req.body.assignedTo !== existingTask.assigned_to &&
+        req.body.assignedTo !== req.user.userId
+      ) {
+        const hydratedTask = await getTask(req.dbClient, task.id);
+        if (hydratedTask && hydratedTask.assigned_to_email) {
+          const { rows: orgRows } = await req.dbClient.query(
+            'SELECT name FROM organizations WHERE id = $1',
+            [req.user.orgId]
+          );
+          const orgName = orgRows[0]?.name || 'TeamFlow Workspace';
+          const { rows: userRows } = await req.dbClient.query(
+            'SELECT email FROM users WHERE id = $1',
+            [req.user.userId]
+          );
+          const assignerEmail = userRows[0]?.email || 'A team member';
+          const taskUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/projects/${project.id}`;
+          
+          sendTaskAssignedEmail({
+            toEmail: hydratedTask.assigned_to_email,
+            taskTitle: hydratedTask.title,
+            projectName: project.name,
+            orgName,
+            taskUrl,
+            assignerEmail,
+          }).catch(console.error);
+
+          await createNotification(req.dbClient, {
+            userId: hydratedTask.assigned_to,
+            orgId: req.user.orgId,
+            message: `${assignerEmail} assigned you a task in ${project.name}: ${hydratedTask.title}`,
+            link: `/projects/${project.id}`
+          }).catch(console.error);
+        }
+      }
+
       res.json({ task });
     } catch (err) {
       next(err);
@@ -125,11 +228,23 @@ router.patch(
 router.delete(
   '/:id',
   authChain,
-  requireRole('admin'),
   [param('id').isUUID().withMessage('Invalid task ID')],
   async (req, res, next) => {
     if (!validate(req, res)) return;
     try {
+      const existingTask = await getTask(req.dbClient, req.params.id);
+      if (!existingTask) return res.status(404).json({ error: 'Task not found' });
+
+      const project = await getProject(req.dbClient, existingTask.project_id);
+      if (!project) return res.status(404).json({ error: 'Project not found' });
+
+      const isAdmin = req.user.role === 'admin' || req.user.role === 'owner';
+      const isTeamLead = project.team_lead_id === req.user.userId;
+
+      if (!isAdmin && !isTeamLead) {
+        return res.status(403).json({ error: 'Only Workspace Admins or Team Leads can delete tasks' });
+      }
+
       const deleted = await deleteTask(req.dbClient, req.params.id);
       if (!deleted) return res.status(404).json({ error: 'Task not found' });
       res.json({ message: 'Task deleted' });
