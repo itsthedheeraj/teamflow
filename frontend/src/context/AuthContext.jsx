@@ -60,6 +60,14 @@ export function AuthProvider({ children }) {
     }
   }, [setAuth]);
 
+  React.useEffect(() => {
+    function handleRefresh() {
+      refreshUser();
+    }
+    window.addEventListener('auth:refresh', handleRefresh);
+    return () => window.removeEventListener('auth:refresh', handleRefresh);
+  }, [refreshUser]);
+
   return (
     <AuthContext.Provider value={{ auth, setAuth, logout, updateOrg, refreshUser }}>
       {children}

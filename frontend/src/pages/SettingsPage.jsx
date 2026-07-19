@@ -38,11 +38,8 @@ export default function SettingsPage() {
         api.get('/projects'),
         api.get('/team/members')
       ]);
-      // Only show projects where user is team lead or admin/owner
-      const managedProjects = (projectsRes.projects || []).filter(
-        p => p.team_lead_id === auth.user.id || auth.role === 'admin' || auth.role === 'owner'
-      );
-      setProjects(managedProjects);
+      // Backend already filters by role — owners see all, others see only their projects
+      setProjects(projectsRes.projects || []);
       setTeamMembers(teamRes.members || []);
     } catch (err) {
       showToast(err.message, 'error');

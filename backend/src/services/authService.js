@@ -23,18 +23,8 @@ function signToken(userId, orgId, role) {
 /**
  * signup()
  *
- * Creates a new user AND a new organization in a single transaction.
- * The signing-up user becomes the 'owner' of the new org.
- *
- * Steps:
- *  1. Hash the password
- *  2. Insert into users
- *  3. Insert into organizations (slug derived from org name)
- *  4. Insert into org_members with role = 'owner'
- *  5. Return a signed JWT
- *
- * All four inserts are wrapped in a transaction so a partial failure
- * (e.g., slug collision) doesn't leave orphaned users or orgs.
+ * Creates a new user (without an organization) in a single transaction.
+ * The user can later create or be invited to an org.
  */
 async function signup({ name, email, password }) {
   const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
@@ -163,7 +153,8 @@ async function switchOrg({ userId, targetOrgId }) {
 /**
  * getMyOrgs()
  *
- * Returns all orgs the user belongs to, for the org switcher UI.
+ * Returns all orgs the user is a member of, for the org switcher UI.
+ * Project-level visibility is enforced separately by listProjects().
  */
 async function getMyOrgs(userId) {
   const { rows } = await pool.query(
@@ -275,4 +266,13 @@ async function changePassword(userId, currentPassword, newPassword) {
   await pool.query(`UPDATE users SET password_hash = $1 WHERE id = $2`, [passwordHash, userId]);
 }
 
-module.exports = { signup, login, getMe, switchOrg, getMyOrgs, signToken, createOrg, changePassword };
+module.exports = {
+  signup,
+  login,
+  getMe,
+  switchOrg,
+  getMyOrgs,
+  signToken,
+  createOrg,
+  changePassword,
+};

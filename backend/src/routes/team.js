@@ -193,7 +193,7 @@ router.post(
 // ─────────────────────────────────────────────
 router.post(
   '/transfer/accept',
-  authChain,
+  verifyJWT,
   [body('token').isString().notEmpty().withMessage('Token is required')],
   async (req, res, next) => {
     if (!validate(req, res)) return;

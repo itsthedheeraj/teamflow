@@ -36,7 +36,7 @@ const authChain = [verifyJWT, verifyOrgMembership, setOrgContext];
 // ─────────────────────────────────────────────
 router.get('/', authChain, async (req, res, next) => {
   try {
-    const projects = await listProjects(req.dbClient, req.user.userId);
+    const projects = await listProjects(req.dbClient, req.user.userId, req.user.role);
     res.json({ projects });
   } catch (err) {
     next(err);

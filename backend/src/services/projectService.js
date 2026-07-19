@@ -15,13 +15,23 @@
  */
 const { syncTaskCount } = require('./meteringService');
 
-async function listProjects(client, userId) {
+async function listProjects(client, userId, role) {
+  // Owners see all projects in the org (RLS already scopes to org).
+  // Admins and members only see projects they are directly connected to:
+  // - they are the team lead
+  // - they created the project
+  // - they have at least one task assigned to them in that project
+  const isOwner = role === 'owner';
   const { rows } = await client.query(
     `SELECT p.id, p.org_id, p.name, p.description, p.team_lead_id, p.created_by, p.created_at,
             EXISTS(SELECT 1 FROM tasks t WHERE t.project_id = p.id AND t.assigned_to = $1) as has_assigned_tasks
      FROM projects p
+     WHERE $2 = TRUE
+        OR p.team_lead_id = $1
+        OR p.created_by   = $1
+        OR EXISTS(SELECT 1 FROM tasks t WHERE t.project_id = p.id AND t.assigned_to = $1)
      ORDER BY p.created_at DESC`,
-    [userId]
+    [userId, isOwner]
   );
   return rows;
 }

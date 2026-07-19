@@ -9,7 +9,7 @@ import Layout from '../components/Layout';
 export default function TransferOrgPage() {
   const { token } = useParams();
   const navigate = useNavigate();
-  const { auth, refreshUser } = useAuth();
+  const { auth, logout } = useAuth();
   const { showToast } = useUI();
   
   const [isAccepting, setIsAccepting] = useState(false);
@@ -18,9 +18,9 @@ export default function TransferOrgPage() {
     setIsAccepting(true);
     try {
       await api.post('/team/transfer/accept', { token });
-      showToast('Workspace ownership transferred successfully!', 'success');
-      await refreshUser();
-      navigate('/dashboard');
+      showToast('Workspace ownership transferred successfully! Please log in again to refresh your permissions.', 'success');
+      logout();
+      navigate('/login');
     } catch (err) {
       showToast(err.message, 'error');
       setIsAccepting(false);
