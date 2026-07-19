@@ -38,6 +38,7 @@ export default function TeamPage() {
 
   // ── Data loading ──────────────────────────────────────────────
   async function loadTeam() {
+    if (!auth?.org?.id) return;
     try {
       const [membersData, invitesData] = await Promise.all([
         api.get('/team/members'),

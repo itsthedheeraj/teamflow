@@ -6,7 +6,7 @@ const { setOrgContext } = require('../middleware/setOrgContext');
 const { listUnreadNotifications, markNotificationAsRead } = require('../services/notificationService');
 
 const router = Router();
-const authChain = [verifyJWT, verifyOrgMembership, setOrgContext];
+const authChain = [verifyJWT];
 
 function validate(req, res) {
   const errors = validationResult(req);
@@ -20,7 +20,7 @@ function validate(req, res) {
 // GET /api/notifications
 router.get('/', authChain, async (req, res, next) => {
   try {
-    const notifications = await listUnreadNotifications(req.dbClient, req.user.userId, req.user.orgId);
+    const notifications = await listUnreadNotifications(req.dbClient, req.user.userId);
     res.json({ notifications });
   } catch (err) {
     next(err);
@@ -38,8 +38,7 @@ router.patch(
       const notification = await markNotificationAsRead(
         req.dbClient,
         req.params.id,
-        req.user.userId,
-        req.user.orgId
+        req.user.userId
       );
       if (!notification) return res.status(404).json({ error: 'Notification not found' });
       res.json({ notification });

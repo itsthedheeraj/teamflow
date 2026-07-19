@@ -11,6 +11,7 @@ const {
   updateProject,
   deleteProject,
 } = require('../services/projectService');
+const { createNotification } = require('../services/notificationService');
 
 const router = Router();
 
@@ -107,7 +108,21 @@ router.patch(
         return res.status(403).json({ error: 'You do not have permission to edit this project' });
       }
 
-      const project = await updateProject(req.dbClient, req.params.id, req.body);
+      const project = await updateProject(req.dbClient, req.params.id, {
+        name: req.body.name,
+        description: req.body.description,
+        teamLeadId: req.body.team_lead_id,
+      });
+
+      if (req.body.team_lead_id && req.body.team_lead_id !== existingProject.team_lead_id) {
+        await createNotification(req.dbClient, {
+          userId: req.body.team_lead_id,
+          orgId: req.user.orgId,
+          message: `You have been made the team lead of project: ${project.name}`,
+          link: `/projects/${project.id}`
+        });
+      }
+
       res.json({ project });
     } catch (err) {
       next(err);

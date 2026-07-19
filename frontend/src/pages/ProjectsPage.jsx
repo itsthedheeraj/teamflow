@@ -20,6 +20,7 @@ export default function ProjectsPage() {
   const canManage = auth?.role === 'admin' || auth?.role === 'owner';
 
   async function loadData() {
+    if (!auth?.org?.id) return;
     try {
       const [projectsRes, teamRes] = await Promise.all([
         api.get('/projects'),

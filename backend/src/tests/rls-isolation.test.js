@@ -37,22 +37,35 @@ beforeAll(async () => {
     .send({
       email: `rls-test-a-${Date.now()}@example.com`,
       password: 'password123',
-      orgName: 'RLS Test Org A',
+      name: 'RLS User A',
     });
   userA = signupA.body.user;
-  orgA = signupA.body.org;
   const tokenA = signupA.body.token;
+
+  const orgResA = await request(app)
+    .post('/api/auth/me/orgs')
+    .set('Authorization', `Bearer ${tokenA}`)
+    .send({ orgName: 'RLS Test Org A' });
+  orgA = orgResA.body.org;
 
   // Create a project in Org A (will be used to test isolation)
   // We need the projects route — stub it inline for now or add routes.
   // For this test, insert directly via pool (simpler).
-  const { rows: [pA] } = await pool.query(
-    `INSERT INTO projects (org_id, name, created_by)
-     VALUES ($1, 'Project Alpha', $2)
-     RETURNING id, org_id, name`,
-    [orgA.id, userA.id]
-  );
-  projectA = pA;
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query(`SELECT set_config('app.current_org_id', $1, true)`, [orgA.id]);
+    const { rows: [pA] } = await client.query(
+      `INSERT INTO projects (org_id, name, created_by)
+       VALUES ($1, 'Project Alpha', $2)
+       RETURNING id, org_id, name`,
+      [orgA.id, userA.id]
+    );
+    projectA = pA;
+    await client.query('COMMIT');
+  } finally {
+    client.release();
+  }
 
   // Org B + User B
   const signupB = await request(app)
@@ -60,18 +73,32 @@ beforeAll(async () => {
     .send({
       email: `rls-test-b-${Date.now()}@example.com`,
       password: 'password123',
-      orgName: 'RLS Test Org B',
+      name: 'RLS User B',
     });
   userB = signupB.body.user;
-  orgB = signupB.body.org;
+  const tokenB = signupB.body.token;
 
-  const { rows: [pB] } = await pool.query(
-    `INSERT INTO projects (org_id, name, created_by)
-     VALUES ($1, 'Project Beta', $2)
-     RETURNING id, org_id, name`,
-    [orgB.id, userB.id]
-  );
-  projectB = pB;
+  const orgResB = await request(app)
+    .post('/api/auth/me/orgs')
+    .set('Authorization', `Bearer ${tokenB}`)
+    .send({ orgName: 'RLS Test Org B' });
+  orgB = orgResB.body.org;
+
+  const client2 = await pool.connect();
+  try {
+    await client2.query('BEGIN');
+    await client2.query(`SELECT set_config('app.current_org_id', $1, true)`, [orgB.id]);
+    const { rows: [pB] } = await client2.query(
+      `INSERT INTO projects (org_id, name, created_by)
+       VALUES ($1, 'Project Beta', $2)
+       RETURNING id, org_id, name`,
+      [orgB.id, userB.id]
+    );
+    projectB = pB;
+    await client2.query('COMMIT');
+  } finally {
+    client2.release();
+  }
 });
 
 afterAll(async () => {

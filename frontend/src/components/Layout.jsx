@@ -9,6 +9,7 @@ import {
   Menu,
   X,
   MailOpen,
+  Settings
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import SidebarOrgSwitcher from './SidebarOrgSwitcher';
@@ -35,6 +36,7 @@ const NAV_LINKS = [
   { to: '/invites',  label: 'My Invites', Icon: MailOpen },
   { to: '/team',     label: 'Team & Invites', Icon: Users, minRole: 'admin' },
   { to: '/billing',  label: 'Billing',  Icon: CreditCard, minRole: 'owner' },
+  { to: '/settings', label: 'Settings', Icon: Settings },
 ];
 
 const ROLE_RANK = { member: 0, admin: 1, owner: 2 };
@@ -214,7 +216,7 @@ export default function Layout({ children }) {
 
         {/* Page content */}
         <main className="flex-1 w-full flex flex-col">
-          {!auth?.org && !pathname.startsWith('/invites') ? (
+          {!auth?.org && !pathname.startsWith('/invites') && !pathname.startsWith('/settings') ? (
             <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
               <h2 className="text-2xl font-bold text-gray-900">Welcome to TeamFlow!</h2>
               <p className="mt-2 text-gray-600 max-w-sm">

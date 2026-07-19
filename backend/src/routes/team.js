@@ -5,7 +5,13 @@ const { verifyOrgMembership } = require('../middleware/verifyOrgMembership');
 const { setOrgContext } = require('../middleware/setOrgContext');
 const { requireRole } = require('../middleware/requireRole');
 const { createInvite, acceptInvite, listInvites, revokeInvite } = require('../services/inviteService');
-const { listMembers, updateMemberRole, removeMember } = require('../services/teamService');
+const {
+  listMembers,
+  updateMemberRole,
+  removeMember,
+  requestOrgTransfer,
+  acceptOrgTransfer,
+} = require('../services/teamService');
 
 const router = Router();
 
@@ -152,6 +158,51 @@ router.delete(
         requestingUserId: req.user.userId,
       });
       res.json({ message: 'Member removed' });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+// ─────────────────────────────────────────────
+// POST /api/team/transfer/request
+// Owner requests to transfer ownership
+// ─────────────────────────────────────────────
+router.post(
+  '/transfer/request',
+  authChain,
+  requireRole('owner'),
+  [body('email').isEmail().withMessage('Invalid target email address')],
+  async (req, res, next) => {
+    if (!validate(req, res)) return;
+    try {
+      await requestOrgTransfer({
+        orgId: req.user.orgId,
+        fromUserId: req.user.userId,
+        email: req.body.email,
+      });
+      res.json({ message: 'Transfer request sent' });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+// ─────────────────────────────────────────────
+// POST /api/team/transfer/accept
+// User accepts transfer request via token
+// ─────────────────────────────────────────────
+router.post(
+  '/transfer/accept',
+  authChain,
+  [body('token').isString().notEmpty().withMessage('Token is required')],
+  async (req, res, next) => {
+    if (!validate(req, res)) return;
+    try {
+      const result = await acceptOrgTransfer({
+        token: req.body.token,
+        userId: req.user.userId,
+      });
+      res.json(result);
     } catch (err) {
       next(err);
     }

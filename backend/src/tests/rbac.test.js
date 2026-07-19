@@ -18,17 +18,24 @@ let orgId, ownerId, adminId, memberId;
 let pendingInviteId;
 
 beforeAll(async () => {
-  // Create org + owner
+  // Create owner user
   const ownerRes = await request(app)
     .post('/api/auth/signup')
     .send({
       email: `rbac-owner-${Date.now()}@example.com`,
       password: 'password123',
-      orgName: 'RBAC Test Org',
+      name: 'Owner',
     });
-  ownerToken = ownerRes.body.token;
-  orgId = ownerRes.body.org.id;
   ownerId = ownerRes.body.user.id;
+  
+  // Create org for owner
+  const orgRes = await request(app)
+    .post('/api/auth/me/orgs')
+    .set('Authorization', `Bearer ${ownerRes.body.token}`)
+    .send({ orgName: 'RBAC Test Org' });
+    
+  ownerToken = orgRes.body.token;
+  orgId = orgRes.body.org.id;
 
   // Create a second user and add them as admin directly in DB
   const adminRes = await request(app)
@@ -36,7 +43,7 @@ beforeAll(async () => {
     .send({
       email: `rbac-admin-${Date.now()}@example.com`,
       password: 'password123',
-      orgName: 'Admin Own Org',
+      name: 'Admin User',
     });
   adminId = adminRes.body.user.id;
 
@@ -65,7 +72,7 @@ beforeAll(async () => {
     .send({
       email: `rbac-member-${Date.now()}@example.com`,
       password: 'password123',
-      orgName: 'Member Own Org',
+      name: 'Member User',
     });
   memberId = memberRes.body.user.id;
 

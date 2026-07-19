@@ -4,10 +4,18 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>TeamFlow</title>
-    <script type="module" crossorigin src="/assets/index-CRZjSKuO.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-DKEkDVNY.css">
+    <script type="module" crossorigin src="/assets/index-aHUXtq3N.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-BTdYQ2ac.css">
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root"></div>
+    <script>
+      window.addEventListener('error', (e) => {
+        document.body.innerHTML += '<div style="color:red; background:white; position:fixed; top:0; left:0; padding:20px; z-index:9999; font-family:monospace; white-space:pre-wrap;">' + (e.error ? e.error.stack : e.message) + '</div>';
+      });
+      window.addEventListener('unhandledrejection', (e) => {
+        document.body.innerHTML += '<div style="color:red; background:white; position:fixed; top:0; left:0; padding:20px; z-index:9999; font-family:monospace; white-space:pre-wrap;">' + (e.reason ? e.reason.stack : e.reason) + '</div>';
+      });
+    </script>
   </body>
 </html>

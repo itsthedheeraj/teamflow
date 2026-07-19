@@ -1,6 +1,6 @@
 const { Router } = require('express');
 const { body, validationResult } = require('express-validator');
-const { signup, login, switchOrg, getMyOrgs, createOrg } = require('../services/authService');
+const { signup, login, switchOrg, getMyOrgs, createOrg, changePassword } = require('../services/authService');
 const { acceptInvite, getMyPendingInvites, declinePendingInvite } = require('../services/inviteService');
 const { verifyJWT } = require('../middleware/verifyJWT');
 
@@ -126,6 +126,19 @@ router.post(
 );
 
 // ─────────────────────────────────────────────
+// GET /api/auth/me
+// Refreshes the user's auth state and returns a new JWT
+// ─────────────────────────────────────────────
+router.get('/me', verifyJWT, async (req, res, next) => {
+  try {
+    const result = await getMe({ userId: req.user.userId, orgId: req.user.orgId });
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ─────────────────────────────────────────────
 // GET /api/auth/me/invites
 // Returns pending invites sent to the authenticated user's email.
 // ─────────────────────────────────────────────
@@ -180,6 +193,31 @@ router.post(
       res.status(201).json(result);
     } catch (err) {
       next(err);
+    }
+  }
+);
+
+// ─────────────────────────────────────────────
+// PATCH /api/auth/change-password
+// ─────────────────────────────────────────────
+router.patch(
+  '/change-password',
+  verifyJWT,
+  [
+    body('currentPassword').notEmpty().withMessage('Current password is required'),
+    body('newPassword').isLength({ min: 8 }).withMessage('New password must be at least 8 characters'),
+  ],
+  async (req, res, next) => {
+    if (!validate(req, res)) return;
+    try {
+      await changePassword(req.user.userId, req.body.currentPassword, req.body.newPassword);
+      res.json({ message: 'Password updated successfully' });
+    } catch (err) {
+      if (err.message === 'Incorrect current password') {
+        res.status(401).json({ error: err.message });
+      } else {
+        next(err);
+      }
     }
   }
 );

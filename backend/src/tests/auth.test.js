@@ -31,16 +31,26 @@ describe('POST /api/auth/signup', () => {
 
   afterAll(() => cleanupEmail(email));
 
-  it('creates a user, org, and owner membership; returns a JWT', async () => {
+  it('creates a user, returns a JWT, and allows org creation', async () => {
+    // 1. Signup
     const res = await request(app)
       .post('/api/auth/signup')
-      .send({ email, password: 'password123', orgName: 'Test Corp' });
+      .send({ email, password: 'password123', name: 'Test User' });
 
     expect(res.status).toBe(201);
     expect(res.body.token).toBeTruthy();
     expect(res.body.user.email).toBe(email);
-    expect(res.body.org.name).toBe('Test Corp');
-    expect(res.body.org.subscriptionTier).toBe('free');
+    expect(res.body.org).toBeNull();
+    
+    // 2. Create Org
+    const orgRes = await request(app)
+      .post('/api/auth/me/orgs')
+      .set('Authorization', `Bearer ${res.body.token}`)
+      .send({ orgName: 'Test Corp' });
+      
+    expect(orgRes.status).toBe(201);
+    expect(orgRes.body.org.name).toBe('Test Corp');
+    expect(orgRes.body.org.subscriptionTier).toBe('free');
   });
 
   it('rejects duplicate email with 409', async () => {
@@ -75,11 +85,16 @@ describe('POST /api/auth/login', () => {
   const email = `test-login-${Date.now()}@example.com`;
   const password = 'logintest123';
 
-  beforeAll(() =>
-    request(app)
+  beforeAll(async () => {
+    const signupRes = await request(app)
       .post('/api/auth/signup')
-      .send({ email, password, orgName: 'Login Test Org' })
-  );
+      .send({ email, password, name: 'Login Test' });
+    
+    await request(app)
+      .post('/api/auth/me/orgs')
+      .set('Authorization', `Bearer ${signupRes.body.token}`)
+      .send({ orgName: 'Login Test Org' });
+  });
   afterAll(() => cleanupEmail(email));
 
   it('returns a JWT on correct credentials', async () => {
@@ -120,8 +135,13 @@ describe('GET /api/auth/me/orgs', () => {
   beforeAll(async () => {
     const res = await request(app)
       .post('/api/auth/signup')
-      .send({ email, password: 'password123', orgName: 'My Orgs Test' });
+      .send({ email, password: 'password123', name: 'My Orgs Test' });
     token = res.body.token;
+    
+    await request(app)
+      .post('/api/auth/me/orgs')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ orgName: 'My Orgs Test' });
   });
   afterAll(() => cleanupEmail(email));
 

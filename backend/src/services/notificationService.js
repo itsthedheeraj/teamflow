@@ -15,9 +15,9 @@ async function listUnreadNotifications(client, userId, orgId) {
   const db = client || pool;
   const { rows } = await db.query(
     `SELECT * FROM notifications 
-     WHERE user_id = $1 AND org_id = $2 AND is_read = false
+     WHERE user_id = $1 AND is_read = false
      ORDER BY created_at DESC`,
-    [userId, orgId]
+    [userId]
   );
   return rows;
 }
@@ -27,9 +27,9 @@ async function markNotificationAsRead(client, notificationId, userId, orgId) {
   const { rows } = await db.query(
     `UPDATE notifications 
      SET is_read = true 
-     WHERE id = $1 AND user_id = $2 AND org_id = $3
+     WHERE id = $1 AND user_id = $2
      RETURNING *`,
-    [notificationId, userId, orgId]
+    [notificationId, userId]
   );
   return rows[0];
 }

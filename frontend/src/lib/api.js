@@ -26,9 +26,13 @@ async function request(path, options = {}) {
   if (res.status === 401) {
     // Token expired or invalid — clear storage and redirect to login
     localStorage.removeItem('token');
-    localStorage.removeItem('user');
+    localStorage.removeItem('auth');
     window.location.href = '/login';
     return;
+  }
+
+  if (res.status === 403) {
+    window.dispatchEvent(new Event('auth:refresh'));
   }
 
   const data = await res.json();

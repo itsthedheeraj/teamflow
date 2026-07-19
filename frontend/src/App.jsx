@@ -12,6 +12,8 @@ import ProjectsPage from './pages/ProjectsPage';
 import TaskBoardPage from './pages/TaskBoardPage';
 import BillingPage from './pages/BillingPage';
 import MyInvitesPage from './pages/MyInvitesPage';
+import SettingsPage from './pages/SettingsPage';
+import TransferOrgPage from './pages/TransferOrgPage';
 
 export default function App() {
   return (
@@ -35,6 +37,8 @@ export default function App() {
             <Route path="/invites" element={<MyInvitesPage />} />
             <Route path="/team" element={<TeamPage />} />
             <Route path="/billing" element={<BillingPage />} />
+            <Route path="/settings" element={<SettingsPage />} />
+            <Route path="/transfer-org/:token" element={<TransferOrgPage />} />
           </Route>
 
           {/* Unknown routes go back to the front door, not login */}

@@ -31,9 +31,15 @@ async function signup(suffix) {
     .send({
       email: `meter-${suffix}-${Date.now()}@example.com`,
       password: 'password123',
-      orgName: `Meter Org ${suffix}`,
+      name: `User ${suffix}`,
     });
-  return res.body; // { token, user, org }
+    
+  const orgRes = await request(app)
+    .post('/api/auth/me/orgs')
+    .set('Authorization', `Bearer ${res.body.token}`)
+    .send({ orgName: `Meter Org ${suffix}` });
+    
+  return orgRes.body; // { token, org, role }
 }
 
 async function createProject(token) {
@@ -75,6 +81,14 @@ async function setTier(orgId, tier) {
 // Setup / teardown
 // ─────────────────────────────────────────────
 afterAll(async () => {
+  await pool.query(`
+    DELETE FROM organizations
+    WHERE id IN (
+      SELECT org_id FROM org_members WHERE user_id IN (
+        SELECT id FROM users WHERE email LIKE 'meter-%'
+      )
+    )
+  `);
   await pool.query(`DELETE FROM users WHERE email LIKE 'meter-%'`);
   await pool.end();
   await redis.quit();
@@ -93,12 +107,20 @@ describe('Free tier task limit (max 20)', () => {
     projectId = project.id;
 
     // Seed 20 tasks directly in DB to avoid 20 slow HTTP calls
-    for (let i = 0; i < 20; i++) {
-      await pool.query(
-        `INSERT INTO tasks (org_id, project_id, title, created_by)
-         VALUES ($1, $2, $3, (SELECT user_id FROM org_members WHERE org_id = $1 LIMIT 1))`,
-        [orgId, projectId, `Seeded task ${i}`]
-      );
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query(`SELECT set_config('app.current_org_id', $1, true)`, [orgId]);
+      for (let i = 0; i < 20; i++) {
+        await client.query(
+          `INSERT INTO tasks (org_id, project_id, title, created_by)
+           VALUES ($1, $2, $3, (SELECT user_id FROM org_members WHERE org_id = $1 LIMIT 1))`,
+          [orgId, projectId, `Seeded task ${i}`]
+        );
+      }
+      await client.query('COMMIT');
+    } finally {
+      client.release();
     }
     // Resync the Redis counter to match the seeded DB state
     await syncTaskCount(orgId);

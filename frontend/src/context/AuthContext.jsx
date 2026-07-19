@@ -41,13 +41,27 @@ export function AuthProvider({ children }) {
 
   const logout = useCallback(() => setAuth(null), [setAuth]);
 
-  // Called after org switch — replaces token + org without touching user
   const updateOrg = useCallback((token, org, role) => {
     setAuth({ ...auth, token, org, role });
   }, [auth, setAuth]);
 
+  const refreshUser = useCallback(async () => {
+    try {
+      const { api } = await import('../lib/api');
+      const data = await api.get('/auth/me');
+      setAuth({
+        token: data.token,
+        user: data.user,
+        org: data.org,
+        role: data.role,
+      });
+    } catch (err) {
+      console.error('Failed to refresh user', err);
+    }
+  }, [setAuth]);
+
   return (
-    <AuthContext.Provider value={{ auth, setAuth, logout, updateOrg }}>
+    <AuthContext.Provider value={{ auth, setAuth, logout, updateOrg, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

@@ -222,4 +222,57 @@ async function createOrg({ userId, orgName }) {
   }
 }
 
-module.exports = { signup, login, switchOrg, getMyOrgs, signToken, createOrg };
+/**
+ * getMe()
+ * Returns the fresh user state and issues a new token.
+ */
+async function getMe({ userId, orgId }) {
+  const { rows } = await pool.query(
+    `SELECT u.id, u.email, u.name,
+            om.role,
+            o.id AS org_id, o.name AS org_name, o.slug AS org_slug, o.subscription_tier
+     FROM users u
+     LEFT JOIN org_members om ON om.user_id = u.id AND om.org_id = $2
+     LEFT JOIN organizations o ON o.id = om.org_id
+     WHERE u.id = $1
+     LIMIT 1`,
+    [userId, orgId || null]
+  );
+
+  if (rows.length === 0) {
+    const e = new Error('User not found');
+    e.status = 404;
+    throw e;
+  }
+
+  const row = rows[0];
+  const token = signToken(row.id, row.org_id || null, row.role || null);
+  return {
+    token,
+    user: { id: row.id, email: row.email, name: row.name },
+    org: row.org_id ? {
+      id: row.org_id,
+      name: row.org_name,
+      slug: row.org_slug,
+      subscriptionTier: row.subscription_tier,
+    } : null,
+    role: row.role || null,
+  };
+}
+
+/**
+ * changePassword()
+ */
+async function changePassword(userId, currentPassword, newPassword) {
+  const { rows } = await pool.query(`SELECT password_hash FROM users WHERE id = $1`, [userId]);
+  if (rows.length === 0) throw new Error('User not found');
+
+  const user = rows[0];
+  const valid = await bcrypt.compare(currentPassword, user.password_hash);
+  if (!valid) throw new Error('Incorrect current password');
+
+  const passwordHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
+  await pool.query(`UPDATE users SET password_hash = $1 WHERE id = $2`, [passwordHash, userId]);
+}
+
+module.exports = { signup, login, getMe, switchOrg, getMyOrgs, signToken, createOrg, changePassword };
