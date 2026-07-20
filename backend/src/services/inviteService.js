@@ -1,7 +1,6 @@
 const jwt = require('jsonwebtoken');
 const pool = require('../db/pool');
 const { incrementMembers, checkMemberLimit } = require('./meteringService');
-const { sendInviteEmail } = require('../lib/email');
 
 /**
  * Invite Service
@@ -13,10 +12,12 @@ const { sendInviteEmail } = require('../lib/email');
  *  3. The token is also stored in the invite_tokens table so it can
  *     be revoked (e.g., if the invitee's role changes before they
  *     accept, or the owner wants to cancel).
- *  4. The invite link is emailed to the invitee via Resend. The console.log
- *     is kept alongside it as a dev convenience and fallback audit trail.
- *     If RESEND_API_KEY is not set, email is skipped silently and the link
- *     is only logged — invite creation is never blocked by email failure.
+ *  4. Email delivery is handled CLIENT-SIDE via EmailJS. createInvite()
+ *     returns { inviteUrl, token, inviterName, orgName, email } so the
+ *     calling route can pass those values back to the frontend, which
+ *     then calls EmailJS directly. The console.log is kept as a dev
+ *     convenience and fallback audit trail — invite creation is never
+ *     blocked by email failure.
  *  5. The invitee visits /accept-invite?token=... and POSTs to
  *     /api/auth/accept-invite to create their account + join the org.
  *
@@ -39,8 +40,9 @@ function signInviteToken({ orgId, email, role, invitedBy }) {
 
 /**
  * createInvite()
- * Called by an owner/admin. Generates a signed invite token,
- * stores it, and returns the invite link for logging/display.
+ * Called by an owner/admin. Generates a signed invite token, stores it,
+ * and returns { inviteUrl, token, inviterName, orgName, email } so the
+ * route can forward those values to the frontend for client-side EmailJS delivery.
  */
 async function createInvite({ orgId, invitedBy, email, role = 'member' }) {
   // Check member limit before even creating the invite
@@ -100,13 +102,9 @@ async function createInvite({ orgId, invitedBy, email, role = 'member' }) {
   const inviterName = inviterResult.rows[0]?.email ?? 'A teammate';
   const orgName     = orgResult.rows[0]?.name    ?? 'your organization';
 
-  // Send the invite email. sendInviteEmail() never throws — if Resend
-  // fails (bad key, rate limit, network error) it logs the error and
-  // returns false. The invite is already committed to the DB at this
-  // point so the failure only affects delivery, not invite creation.
-  await sendInviteEmail({ toEmail: email, inviterName, orgName, inviteUrl, role });
-
-  return { inviteUrl, token };
+  // Email delivery is handled client-side via EmailJS.
+  // Return all the data the frontend needs to send the email itself.
+  return { inviteUrl, token, inviterName, orgName, email };
 }
 
 /**

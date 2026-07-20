@@ -194,59 +194,93 @@ revoke? Why or why not?
 
 ---
 
-## Email Integration — Resend
+## Email Integration — EmailJS (client-side)
 
-Invite links are now delivered by email using [Resend](https://resend.com),
-a transactional email API with a generous free tier (100 emails/day, no
-credit card required).
+Invite and workspace-transfer emails are now sent **client-side** via
+[EmailJS](https://www.emailjs.com), a browser SDK that calls email
+templates you define in the EmailJS dashboard — no server-side email
+credentials or API keys required.
 
-### What the email contains
+### Why we moved away from Resend
 
-- Subject: `[Inviter's email] invited you to join [Org name] on TeamFlow`
-- A short message explaining the invite and the role being granted
-- A prominent "Accept Invite" button linking to `/accept-invite?token=...`
-- A note that the link expires in 48 hours
-- A plain-text URL fallback for email clients that don't render HTML
+Resend was the original server-side provider. It works well, but its free
+tier restricts outbound email to the **account owner's own verified email
+address** unless you connect and verify a custom domain. In practice this
+blocked every real invite: the email would fail with a domain-verification
+error for any recipient address other than the Resend account holder's own.
 
-### From address
+EmailJS solves this cleanly — it connects to your own Gmail (or any SMTP
+account) through OAuth, so emails arrive from your real address and reach
+any recipient without domain setup.
 
-`TeamFlow <onboarding@resend.dev>` — Resend's shared test domain, which
-works out of the box without domain verification. For production, verify
-your own domain in the Resend dashboard and update `FROM_ADDRESS` in
-`src/lib/email.js`.
+### How it works
+
+The backend no longer sends email at all. Instead:
+
+1. The frontend calls `POST /api/team/invite` (or `POST /api/team/transfer/request`).
+2. The backend creates the DB record, generates the token/link, and returns
+   `{ inviteUrl, inviterName, orgName, email }` (or the transfer equivalent)
+   in the JSON response.
+3. The frontend immediately calls `emailjs.send(serviceId, templateId, params, publicKey)`.
+4. EmailJS delivers the email directly from the browser via your connected
+   Gmail account.
+
+### Template parameters
+
+**Invite template** (`VITE_EMAILJS_TEMPLATE_ID`):
+
+| Parameter      | Value                                      |
+|----------------|--------------------------------------------|
+| `to_email`     | The invitee's email address                |
+| `inviter_name` | Email of the person who sent the invite    |
+| `org_name`     | Name of the organization                   |
+| `invite_link`  | Full `/accept-invite?token=...` URL        |
+
+**Transfer template** (`VITE_EMAILJS_TRANSFER_TEMPLATE_ID`):
+
+| Parameter            | Value                                      |
+|----------------------|--------------------------------------------|
+| `to_email`           | New owner's email address                  |
+| `current_owner_name` | Name/email of the current owner            |
+| `org_name`           | Name of the organization                   |
+| `transfer_link`      | Full `/transfer-org/:token` URL            |
 
 ### Graceful failure design
 
-Email delivery failure **never blocks invite creation**. The flow is:
+EmailJS failure **never blocks invite or transfer creation** — the DB record
+is already committed before the email fires. If `emailjs.send()` rejects:
+
+- **Invites:** an amber fallback banner appears in the Team page with the raw
+  invite link and a one-click copy button, so the owner can share it manually.
+  The raw link is hidden on success — it is only revealed in this failure case.
+- **Transfers:** a toast explains that the request was created and the
+  recipient will still see an in-app notification if they have an account.
+
+### The public key is intentionally client-visible
+
+EmailJS is designed to be used from the browser. The public key identifies
+your EmailJS account for rate-limiting and billing purposes — it is not a
+secret and cannot be used to read your emails or impersonate your account.
+This is the standard EmailJS model; their documentation explicitly states
+the public key is safe to include in frontend code.
+
+### Environment variables
+
+Add to `frontend/.env` (copy from `frontend/.env.example`):
 
 ```
-1. DB: insert invite_tokens row              ← if this fails, throw (invite blocked)
-2. DB: fetch inviter email + org name        ← for the email body
-3. Email: sendInviteEmail()                  ← if this fails, log + continue
-4. Return { inviteUrl, token }               ← invite always succeeds if DB did
+VITE_EMAILJS_SERVICE_ID=service_xxxxxxx
+VITE_EMAILJS_TEMPLATE_ID=template_xxxxxxx
+VITE_EMAILJS_TRANSFER_TEMPLATE_ID=template_xxxxxxx
+VITE_EMAILJS_PUBLIC_KEY=xxxxxxxxxxxxxxxxxxxx
 ```
 
-`sendInviteEmail()` is written to never throw — it catches both Resend
-API errors (bad key, rate limit, domain not verified) and network errors,
-logs them with `[email]` prefix, and returns `false`. The invite record
-is already committed to the database at the point the email fires, so
-the invitee can always be resent a link manually from the Team page.
+Find these in your [EmailJS dashboard](https://dashboard.emailjs.com):
+- **Service ID** — Email Services → your connected Gmail service
+- **Template IDs** — Email Templates → each template's ID
+- **Public Key** — Account → API Keys
 
-This matters because email delivery is an external dependency with its
-own failure modes entirely separate from your application's correctness.
-Coupling invite creation to email delivery would mean a Resend outage
-prevents your team from growing — which is the wrong tradeoff.
-
-### Environment variable
-
-Add to `backend/.env`:
-
-```
-RESEND_API_KEY=re_xxxxxxxxxxxxxxxxxxxx
-```
-
-Get this from [resend.com/api-keys](https://resend.com/api-keys).
-
-If the key is missing or still set to the placeholder `re_REPLACE_ME`,
-email is skipped silently and the invite link is only logged to the
-console — the same behaviour as before this integration was added.
+The `RESEND_API_KEY` backend variable is no longer used by the invite or
+transfer flows. `src/lib/email.js` still exists for the task-assignment
+email (which uses Resend separately) and can be removed or migrated
+independently.

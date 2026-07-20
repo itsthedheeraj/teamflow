@@ -7,18 +7,19 @@ import { useUI } from '../context/UIContext';
 import Layout from '../components/Layout';
 
 export default function MyInvitesPage() {
-  const { updateOrg } = useAuth();
-  const { showToast, confirm } = useUI();
-  const navigate = useNavigate();
-  const [invites, setInvites] = useState([]);
+  const { updateOrg }           = useAuth();
+  const { showToast, confirm }  = useUI();
+  const navigate                = useNavigate();
+
+  const [invites, setInvites]             = useState([]);
   const [notifications, setNotifications] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading]             = useState(false);
 
   async function loadData() {
     try {
       const [invitesRes, notificationsRes] = await Promise.all([
         api.get('/auth/me/invites'),
-        api.get('/notifications')
+        api.get('/notifications'),
       ]);
       setInvites(invitesRes.invites || []);
       setNotifications(notificationsRes.notifications || []);
@@ -62,12 +63,10 @@ export default function MyInvitesPage() {
   async function handleReadNotification(id, link) {
     try {
       await api.patch(`/notifications/${id}/read`);
-      setNotifications(notifications.map(n => 
+      setNotifications(notifications.map((n) =>
         n.id === id ? { ...n, is_read: true } : n
       ));
-      if (link) {
-        navigate(link);
-      }
+      if (link) navigate(link);
     } catch (err) {
       showToast(err.message, 'error');
     }
@@ -76,7 +75,7 @@ export default function MyInvitesPage() {
   async function handleDeleteNotification(id) {
     try {
       await api.delete(`/notifications/${id}`);
-      setNotifications(notifications.filter(n => n.id !== id));
+      setNotifications(notifications.filter((n) => n.id !== id));
       showToast('Notification deleted', 'success');
     } catch (err) {
       showToast(err.message, 'error');
@@ -86,31 +85,45 @@ export default function MyInvitesPage() {
   return (
     <Layout>
       <div className="max-w-3xl mx-auto space-y-8">
-        <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-          <MailOpen size={24} className="text-brand-600" />
-          My Invites & Notifications
+        <h1 className="text-2xl font-bold text-tx-primary flex items-center gap-2">
+          <MailOpen size={24} className="text-accent" />
+          My Invites &amp; Notifications
         </h1>
 
-        {/* Pending Invites Section */}
+        {/* ── Pending Invites ────────────────────────────────────── */}
         <section className="space-y-4">
-          <h2 className="text-lg font-semibold text-gray-800">Pending Workspace Invites</h2>
-          <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+          <h2 className="text-lg font-semibold text-tx-primary">
+            Pending Workspace Invites
+          </h2>
+
+          <div className="bg-surface-1 border border-line rounded-xl overflow-hidden">
             {invites.length === 0 ? (
-              <div className="px-5 py-10 text-center text-gray-500">
+              <div className="px-5 py-10 text-center text-tx-muted">
                 <p>You have no pending workspace invites.</p>
               </div>
             ) : (
-              <ul className="divide-y divide-gray-100">
+              <ul className="divide-y divide-line">
                 {invites.map((inv) => (
-                  <li key={inv.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-5 py-4">
+                  <li
+                    key={inv.id}
+                    className="flex flex-col sm:flex-row sm:items-center
+                      justify-between gap-4 px-5 py-4"
+                  >
                     <div className="flex-1 min-w-0">
-                      <p className="text-base font-semibold text-gray-900 truncate">
+                      <p className="text-base font-semibold text-tx-primary truncate">
                         {inv.org_name}
                       </p>
-                      <p className="text-sm text-gray-500 mt-0.5">
-                        Invited by <span className="font-medium text-gray-700">{inv.inviter_email}</span> as a <span className="capitalize font-medium">{inv.role}</span>
+                      <p className="text-sm text-tx-muted mt-0.5">
+                        Invited by{' '}
+                        <span className="font-medium text-tx-secondary">
+                          {inv.inviter_email}
+                        </span>{' '}
+                        as a{' '}
+                        <span className="capitalize font-medium text-tx-secondary">
+                          {inv.role}
+                        </span>
                       </p>
-                      <p className="text-xs text-gray-400 mt-1">
+                      <p className="text-xs text-tx-muted mt-1">
                         Expires {new Date(inv.expires_at).toLocaleDateString()}
                       </p>
                     </div>
@@ -119,7 +132,9 @@ export default function MyInvitesPage() {
                       <button
                         onClick={() => handleAccept(inv.token)}
                         disabled={loading}
-                        className="flex items-center gap-1.5 bg-brand-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-brand-700 transition-colors disabled:opacity-50"
+                        className="flex items-center gap-1.5 bg-accent text-white
+                          px-4 py-2 rounded-lg text-sm font-medium
+                          hover:opacity-90 transition-opacity disabled:opacity-50"
                       >
                         <Check size={16} strokeWidth={2} />
                         Accept
@@ -127,7 +142,9 @@ export default function MyInvitesPage() {
                       <button
                         onClick={() => handleDecline(inv.token)}
                         disabled={loading}
-                        className="flex items-center gap-1.5 bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors disabled:opacity-50"
+                        className="flex items-center gap-1.5 bg-surface-1 border border-line
+                          text-tx-secondary px-4 py-2 rounded-lg text-sm font-medium
+                          hover:bg-surface-2 transition-colors disabled:opacity-50"
                       >
                         <X size={16} strokeWidth={2} />
                         Decline
@@ -140,24 +157,39 @@ export default function MyInvitesPage() {
           </div>
         </section>
 
-        {/* Notifications Section */}
+        {/* ── Notifications ──────────────────────────────────────── */}
         <section className="space-y-4">
-          <h2 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-            <Bell size={18} className="text-gray-500" />
+          <h2 className="text-lg font-semibold text-tx-primary flex items-center gap-2">
+            <Bell size={18} className="text-tx-muted" />
             Notifications
           </h2>
-          <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+
+          <div className="bg-surface-1 border border-line rounded-xl overflow-hidden">
             {notifications.length === 0 ? (
-              <div className="px-5 py-10 text-center text-gray-500">
+              <div className="px-5 py-10 text-center text-tx-muted">
                 <p>You're all caught up!</p>
               </div>
             ) : (
-              <ul className="divide-y divide-gray-100">
+              <ul className="divide-y divide-line">
                 {notifications.map((notif) => (
-                  <li key={notif.id} className={`flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-5 py-4 transition-colors ${notif.is_read ? 'bg-gray-50 opacity-75' : 'hover:bg-gray-50'}`}>
+                  <li
+                    key={notif.id}
+                    className={`flex flex-col sm:flex-row sm:items-center
+                      justify-between gap-4 px-5 py-4 transition-colors ${
+                        notif.is_read
+                          ? 'bg-surface-0 opacity-70'
+                          : 'hover:bg-surface-2'
+                      }`}
+                  >
                     <div className="flex-1 min-w-0">
-                      <p className={`text-sm ${notif.is_read ? 'text-gray-600' : 'text-gray-900 font-medium'}`}>{notif.message}</p>
-                      <p className="text-xs text-gray-400 mt-1">
+                      <p className={`text-sm ${
+                        notif.is_read
+                          ? 'text-tx-muted'
+                          : 'text-tx-primary font-medium'
+                      }`}>
+                        {notif.message}
+                      </p>
+                      <p className="text-xs text-tx-muted mt-1">
                         {new Date(notif.created_at).toLocaleString()}
                       </p>
                     </div>
@@ -166,7 +198,9 @@ export default function MyInvitesPage() {
                       {notif.link && (
                         <button
                           onClick={() => handleReadNotification(notif.id, notif.link)}
-                          className="flex items-center gap-1.5 bg-brand-50 text-brand-700 px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-brand-100 transition-colors"
+                          className="flex items-center gap-1.5 bg-accent-bg text-accent-text
+                            px-3 py-1.5 rounded-lg text-xs font-medium
+                            hover:opacity-80 transition-opacity"
                         >
                           <ExternalLink size={14} />
                           View
@@ -175,7 +209,9 @@ export default function MyInvitesPage() {
                       {!notif.is_read && (
                         <button
                           onClick={() => handleReadNotification(notif.id)}
-                          className="flex items-center gap-1.5 bg-white border border-gray-300 text-gray-700 px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-gray-50 transition-colors"
+                          className="flex items-center gap-1.5 bg-surface-1 border border-line
+                            text-tx-secondary px-3 py-1.5 rounded-lg text-xs font-medium
+                            hover:bg-surface-2 transition-colors"
                         >
                           <Check size={14} />
                           Mark Read
@@ -183,8 +219,10 @@ export default function MyInvitesPage() {
                       )}
                       <button
                         onClick={() => handleDeleteNotification(notif.id)}
-                        className="flex items-center gap-1.5 bg-white border border-gray-300 text-red-600 px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-red-50 transition-colors"
                         title="Delete Notification"
+                        className="flex items-center gap-1.5 bg-surface-1 border border-line
+                          text-status-danger-text px-3 py-1.5 rounded-lg text-xs font-medium
+                          hover:bg-status-danger-bg transition-colors"
                       >
                         <Trash2 size={14} />
                       </button>
@@ -195,7 +233,6 @@ export default function MyInvitesPage() {
             )}
           </div>
         </section>
-
       </div>
     </Layout>
   );

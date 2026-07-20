@@ -1,17 +1,19 @@
 import { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Sun, Moon } from 'lucide-react';
 import { api } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 
 export default function LoginPage() {
   const navigate = useNavigate();
   const { setAuth } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const location = useLocation();
   const from = location.state?.from?.pathname || '/projects';
 
-  const [form, setForm] = useState({ email: '', password: '' });
-  const [error, setError] = useState('');
+  const [form, setForm]     = useState({ email: '', password: '' });
+  const [error, setError]   = useState('');
   const [loading, setLoading] = useState(false);
 
   function handleChange(e) {
@@ -26,9 +28,9 @@ export default function LoginPage() {
       const data = await api.post('/auth/login', form);
       setAuth({
         token: data.token,
-        user: data.user,
-        org: data.org,
-        role: data.role,
+        user:  data.user,
+        org:   data.org,
+        role:  data.role,
       });
       navigate(from);
     } catch (err) {
@@ -39,35 +41,51 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+    <div className="min-h-screen flex items-center justify-center bg-surface-0 px-4">
+      {/* Theme toggle — top-right corner */}
+      <button
+        onClick={toggleTheme}
+        title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+        aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+        className="fixed top-4 right-4 p-2 rounded-lg text-tx-muted
+          hover:text-tx-primary hover:bg-surface-2 transition-colors"
+      >
+        {theme === 'dark'
+          ? <Sun  size={17} strokeWidth={1.8} />
+          : <Moon size={17} strokeWidth={1.8} />}
+      </button>
+
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">TeamFlow</h1>
-          <p className="mt-2 text-gray-500">Sign in to your workspace</p>
+          <h1 className="text-3xl font-bold text-tx-primary">TeamFlow</h1>
+          <p className="mt-2 text-tx-secondary">Sign in to your workspace</p>
         </div>
 
         <form
           onSubmit={handleSubmit}
-          className="bg-white shadow-sm rounded-xl p-8 space-y-5 border border-gray-200"
+          className="bg-surface-1 shadow-sm rounded-xl p-8 space-y-5
+            border border-line"
         >
-          <h2 className="text-xl font-semibold text-gray-800">Welcome back</h2>
+          <h2 className="text-xl font-semibold text-tx-primary">Welcome back</h2>
 
           <Link
             to="/"
-            className="inline-flex items-center gap-1.5 text-sm text-gray-400 hover:text-gray-700 transition-colors -mt-1"
+            className="inline-flex items-center gap-1.5 text-sm text-tx-muted
+              hover:text-tx-primary transition-colors -mt-1"
           >
             <ArrowLeft size={15} strokeWidth={2} />
             Back
           </Link>
 
           {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3">
+            <div className="bg-status-danger-bg border border-status-danger-text/20
+              text-status-danger-text text-sm rounded-lg px-4 py-3">
               {error}
             </div>
           )}
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-tx-secondary mb-1">
               Email
             </label>
             <input
@@ -77,12 +95,14 @@ export default function LoginPage() {
               onChange={handleChange}
               placeholder="you@company.com"
               required
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+              className="w-full border border-line-strong rounded-lg px-3 py-2 text-sm
+                bg-surface-2 text-tx-primary placeholder:text-tx-muted
+                focus:outline-none focus:ring-2 focus:ring-accent"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-tx-secondary mb-1">
               Password
             </label>
             <input
@@ -92,21 +112,24 @@ export default function LoginPage() {
               onChange={handleChange}
               placeholder="Your password"
               required
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+              className="w-full border border-line-strong rounded-lg px-3 py-2 text-sm
+                bg-surface-2 text-tx-primary placeholder:text-tx-muted
+                focus:outline-none focus:ring-2 focus:ring-accent"
             />
           </div>
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-brand-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-brand-700 disabled:opacity-50 transition-colors"
+            className="w-full bg-accent text-white py-2 rounded-lg text-sm font-medium
+              hover:opacity-90 disabled:opacity-50 transition-opacity"
           >
             {loading ? 'Signing in…' : 'Sign in'}
           </button>
 
-          <p className="text-center text-sm text-gray-500">
+          <p className="text-center text-sm text-tx-muted">
             Don't have an account?{' '}
-            <Link to="/signup" className="text-brand-600 hover:underline">
+            <Link to="/signup" className="text-accent hover:underline font-medium">
               Create a workspace
             </Link>
           </p>

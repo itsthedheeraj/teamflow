@@ -1,4 +1,5 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
+import { ThemeProvider } from './context/ThemeContext';
 import { AuthProvider } from './context/AuthContext';
 import { UIProvider } from './context/UIContext';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -17,35 +18,39 @@ import TransferOrgPage from './pages/TransferOrgPage';
 
 export default function App() {
   return (
-    <UIProvider>
-      <AuthProvider>
-        <Routes>
-          {/* Public marketing page — also handles the logged-in redirect
-              to /projects internally, so no auth check needed here */}
-          <Route path="/" element={<LandingPage />} />
+    // ThemeProvider is outermost so it can set the 'dark' class on <html>
+    // before any other provider or component renders, preventing a flash.
+    <ThemeProvider>
+      <UIProvider>
+        <AuthProvider>
+          <Routes>
+            {/* Public marketing page — also handles the logged-in redirect
+                to /projects internally, so no auth check needed here */}
+            <Route path="/" element={<LandingPage />} />
 
-          {/* Auth pages */}
-          <Route path="/signup" element={<SignupPage />} />
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/accept-invite" element={<AcceptInvitePage />} />
-          {/* Transfer org — accessible without an active workspace */}
-          <Route path="/transfer-org/:token" element={<TransferOrgPage />} />
+            {/* Auth pages */}
+            <Route path="/signup" element={<SignupPage />} />
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/accept-invite" element={<AcceptInvitePage />} />
+            {/* Transfer org — accessible without an active workspace */}
+            <Route path="/transfer-org/:token" element={<TransferOrgPage />} />
 
-          {/* Protected routes — ProtectedRoute redirects to /login if not authed */}
-          <Route element={<ProtectedRoute />}>
-            <Route path="/dashboard" element={<DashboardPage />} />
-            <Route path="/projects" element={<ProjectsPage />} />
-            <Route path="/projects/:projectId" element={<TaskBoardPage />} />
-            <Route path="/invites" element={<MyInvitesPage />} />
-            <Route path="/team" element={<TeamPage />} />
-            <Route path="/billing" element={<BillingPage />} />
-            <Route path="/settings" element={<SettingsPage />} />
-          </Route>
+            {/* Protected routes — ProtectedRoute redirects to /login if not authed */}
+            <Route element={<ProtectedRoute />}>
+              <Route path="/dashboard" element={<DashboardPage />} />
+              <Route path="/projects" element={<ProjectsPage />} />
+              <Route path="/projects/:projectId" element={<TaskBoardPage />} />
+              <Route path="/invites" element={<MyInvitesPage />} />
+              <Route path="/team" element={<TeamPage />} />
+              <Route path="/billing" element={<BillingPage />} />
+              <Route path="/settings" element={<SettingsPage />} />
+            </Route>
 
-          {/* Unknown routes go back to the front door, not login */}
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </AuthProvider>
-    </UIProvider>
+            {/* Unknown routes go back to the front door, not login */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </AuthProvider>
+      </UIProvider>
+    </ThemeProvider>
   );
 }

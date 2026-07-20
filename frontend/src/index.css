@@ -2,8 +2,130 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ═══════════════════════════════════════════════════════════════════
+   CSS CUSTOM PROPERTY SYSTEM
+   All theme-sensitive colors live here. Components reference these
+   variables via Tailwind semantic tokens (surface-0, tx-primary, etc.)
+   so there is zero per-component dark: override boilerplate needed.
+
+   Light mode   → :root
+   Dark mode    → html.dark   (toggled by ThemeContext)
+═══════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* ── Surfaces ─────────────────────────────────────────────────── */
+  --surface-0: #f8fafc;        /* page background  (≈ gray-50)     */
+  --surface-1: #ffffff;        /* card / sidebar                    */
+  --surface-2: #f1f5f9;        /* elevated card, input bg, dropdown */
+  --surface-3: #f8fafc;        /* project cards — same as 0 in light
+                                  (hierarchy only matters in dark)   */
+
+  /* ── Text ─────────────────────────────────────────────────────── */
+  --text-primary:   #0f172a;   /* headings, labels   (≈ slate-900)  */
+  --text-secondary: #334155;   /* body copy           (≈ slate-700)  */
+  --text-muted:     #64748b;   /* captions, placeholders (slate-500) */
+
+  /* ── Borders ──────────────────────────────────────────────────── */
+  --border:        #e2e8f0;    /* hairline dividers   (slate-200)   */
+  --border-strong: #cbd5e1;    /* inputs, focus rings (slate-300)   */
+  --border-dashed: #cbd5e1;    /* dashed placeholders — same as
+                                  strong in light mode               */
+
+  /* ── Accent (blue) ────────────────────────────────────────────── */
+  --accent:      #2563eb;      /* brand-600 — buttons, links        */
+  --accent-bg:   #eff6ff;      /* brand-50  — active nav bg, pills  */
+  --accent-text: #1d4ed8;      /* brand-700 — active nav text       */
+
+  /* ── Status badges ────────────────────────────────────────────── */
+  --status-success-bg:   #f0fdf4;   /* green-50  */
+  --status-success-text: #166534;   /* green-800 */
+  --status-warning-bg:   #fffbeb;   /* amber-50  */
+  --status-warning-text: #92400e;   /* amber-800 */
+  --status-danger-bg:    #fef2f2;   /* red-50    */
+  --status-danger-text:  #991b1b;   /* red-800   */
+  --status-pro-bg:       #eff6ff;   /* brand-50  */
+  --status-pro-text:     #1d4ed8;   /* brand-700 */
+  /* Note card (amber tint for task notes) */
+  --status-note-bg:      #fffbeb;   /* amber-50  */
+  --status-note-text:    #78350f;   /* amber-900 */
+  --status-note-border:  #fde68a;   /* amber-200 */
+}
+
+/* ─── Dark mode overrides ──────────────────────────────────────── */
+/*
+   Palette designed for visual hierarchy and contrast:
+   - surface-0 → surface-1 → surface-2 → surface-3 are each a visible
+     step lighter so nesting reads clearly
+   - Borders are solid and distinguishable (#23262E / #292D36)
+   - border-dashed is noticeably lighter so dashed placeholder cards
+     stand out from solid-border content cards
+   - Accent is a bright but not neon blue (#4C7FE8), desaturated enough
+     for dark backgrounds; accent-bg is a subtle transparent tint
+   - Text tiers: primary (#ECEDEE) → secondary (#9BA1AB) → muted (#71767D)
+   - Pro uses purple accent to visually separate from the blue accent
+   - Status badge backgrounds are very dark so the bright text pops
+     without being neon                                                   */
+html.dark {
+  /* ── Surfaces ─────────────────────────────────────────────────── */
+  --surface-0: #0F1115;        /* page background — near-black base    */
+  --surface-1: #15171C;        /* sidebar + top-level cards            */
+  --surface-2: #1C1F26;        /* nested elements, org switcher,
+                                  elevated cards, inputs, dropdowns     */
+  --surface-3: #171A21;        /* project cards — between 1 and 2,
+                                  gives grid items their own depth      */
+
+  /* ── Text ─────────────────────────────────────────────────────── */
+  --text-primary:   #ECEDEE;   /* headings, labels — bright off-white  */
+  --text-secondary: #9BA1AB;   /* body copy, descriptions              */
+  --text-muted:     #71767D;   /* timestamps, placeholders, captions   */
+
+  /* ── Borders ──────────────────────────────────────────────────── */
+  --border:        #23262E;    /* solid card/sidebar dividers          */
+  --border-strong: #292D36;    /* inputs, focus context                */
+  --border-dashed: #34383F;    /* empty-state placeholder cards —
+                                  noticeably lighter than --border      */
+
+  /* ── Accent (blue) ───────────────────────────────────────────── */
+  --accent:      #4C7FE8;               /* buttons, active items, links  */
+  --accent-bg:   rgba(76,127,232,0.14); /* active nav bg — subtle tint   */
+  --accent-text: #7AA2F0;               /* icon/label on accent-bg       */
+
+  /* ── Status / badge tokens ───────────────────────────────────── */
+  --status-success-bg:   #0B2318;   /* deep green                   */
+  --status-success-text: #3FCF8E;   /* bright mint green            */
+  --status-warning-bg:   #241A00;   /* deep amber                   */
+  --status-warning-text: #F0A429;   /* amber                        */
+  --status-danger-bg:    #280D0D;   /* deep red                     */
+  --status-danger-text:  #F87171;   /* soft red                     */
+  --status-pro-bg:       rgba(167,139,250,0.18); /* purple tint     */
+  --status-pro-text:     #C4B5FD;   /* lavender                     */
+  /* Note card (amber tint for task notes) */
+  --status-note-bg:      #241A00;
+  --status-note-text:    #FCD34D;
+  --status-note-border:  #92400E;
+}
+
+/* ─── Base layer ───────────────────────────────────────────────── */
 @layer base {
   body {
-    @apply bg-gray-50 text-gray-900;
+    background-color: var(--surface-0);
+    color: var(--text-primary);
+    /* Smooth transition when theme toggles — only on bg/color,
+       not on every property (avoids flashing layout transitions)  */
+    transition: background-color 0.2s ease, color 0.2s ease;
+  }
+
+  /* Inputs and selects inherit from CSS variables */
+  input,
+  textarea,
+  select {
+    background-color: var(--surface-1);
+    color: var(--text-primary);
+    border-color: var(--border-strong);
+  }
+
+  input::placeholder,
+  textarea::placeholder {
+    color: var(--text-muted);
   }
 }

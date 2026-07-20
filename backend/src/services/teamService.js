@@ -1,6 +1,5 @@
 const pool = require('../db/pool');
 const crypto = require('crypto');
-const { sendInviteEmail } = require('../lib/email');
 const { decrementMembers, incrementMembers } = require('./meteringService');
 
 /**
@@ -171,16 +170,15 @@ async function requestOrgTransfer({ orgId, fromUserId, email }) {
     );
   }
 
-  // Send email to the user (whether they exist or not)
-  await sendInviteEmail({
-    toEmail: email,
-    inviterName: inviterName || 'Workspace Owner',
+  // Email delivery is handled client-side via EmailJS.
+  // Return all the data the frontend needs to send the transfer email itself.
+  return {
+    success: true,
+    transferUrl: inviteUrl,
     orgName,
-    inviteUrl,
-    role: 'owner'
-  });
-
-  return { success: true };
+    toEmail: email,
+    ownerName: inviterName || 'Workspace Owner',
+  };
 }
 
 async function acceptOrgTransfer({ token, userId }) {

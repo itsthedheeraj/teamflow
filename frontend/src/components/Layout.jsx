@@ -9,9 +9,12 @@ import {
   Menu,
   X,
   MailOpen,
-  Settings
+  Settings,
+  Sun,
+  Moon,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import SidebarOrgSwitcher from './SidebarOrgSwitcher';
 import SidebarUsageWidget from './SidebarUsageWidget';
 
@@ -23,20 +26,18 @@ import SidebarUsageWidget from './SidebarUsageWidget';
  *
  * MOBILE (<768px):
  *   Sidebar is completely off-screen (translateX -100%). A top bar with
- *   a hamburger icon (☰) toggles it open as a full-height overlay on top
- *   of the content. A semi-transparent backdrop closes it when tapped.
- *   Main content takes the full screen width (no ml-[220px]).
+ *   a hamburger icon toggles it open as a full-height overlay.
  *
- * Sidebar is never "shrunk" on mobile — it's either fully visible
- * (overlay) or fully hidden. This prevents the squeezed-content problem.
+ * Theme toggle (sun/moon) sits at the bottom of the sidebar,
+ * next to the user profile row, and in the mobile top bar.
  */
 
 const NAV_LINKS = [
-  { to: '/projects', label: 'Projects', Icon: FolderOpen },
-  { to: '/invites',  label: 'My Invites', Icon: MailOpen },
-  { to: '/team',     label: 'Team & Invites', Icon: Users, minRole: 'admin' },
-  { to: '/billing',  label: 'Billing',  Icon: CreditCard, minRole: 'owner' },
-  { to: '/settings', label: 'Settings', Icon: Settings },
+  { to: '/projects', label: 'Projects',      Icon: FolderOpen },
+  { to: '/invites',  label: 'My Invites',    Icon: MailOpen },
+  { to: '/team',     label: 'Team & Invites',Icon: Users,      minRole: 'admin' },
+  { to: '/billing',  label: 'Billing',       Icon: CreditCard, minRole: 'owner' },
+  { to: '/settings', label: 'Settings',      Icon: Settings },
 ];
 
 const ROLE_RANK = { member: 0, admin: 1, owner: 2 };
@@ -47,9 +48,10 @@ function meetsRole(userRole, minRole) {
 }
 
 export default function Layout({ children }) {
-  const { auth, logout } = useAuth();
-  const navigate   = useNavigate();
-  const { pathname } = useLocation();
+  const { auth, logout }    = useAuth();
+  const { theme, toggleTheme } = useTheme();
+  const navigate            = useNavigate();
+  const { pathname }        = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const sidebarRef = useRef(null);
 
@@ -74,23 +76,42 @@ export default function Layout({ children }) {
     navigate('/login');
   }
 
-  const userInitial = auth?.user?.name?.[0]?.toUpperCase() || auth?.user?.email?.[0]?.toUpperCase() || '?';
+  const userInitial =
+    auth?.user?.name?.[0]?.toUpperCase() ||
+    auth?.user?.email?.[0]?.toUpperCase() ||
+    '?';
+
+  // ── Theme toggle button (reused in sidebar + mobile top bar) ──
+  const ThemeToggle = ({ className = '' }) => (
+    <button
+      onClick={toggleTheme}
+      title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+      aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+      className={`flex-shrink-0 p-1.5 rounded-lg text-tx-muted
+        hover:text-tx-primary hover:bg-surface-2
+        transition-colors ${className}`}
+    >
+      {theme === 'dark'
+        ? <Sun  size={15} strokeWidth={1.8} />
+        : <Moon size={15} strokeWidth={1.8} />}
+    </button>
+  );
 
   // ── Sidebar contents (shared between desktop and mobile overlay) ──
   const sidebarContents = (
     <>
       {/* Logo */}
-      <div className="px-4 h-14 flex items-center gap-2.5 border-b border-gray-100 flex-shrink-0">
-        <div className="w-7 h-7 rounded-lg bg-brand-600 flex items-center justify-center flex-shrink-0">
+      <div className="px-4 h-14 flex items-center gap-2.5 border-b border-line flex-shrink-0">
+        <div className="w-7 h-7 rounded-lg bg-accent flex items-center justify-center flex-shrink-0">
           <Zap size={14} className="text-white" strokeWidth={2.5} />
         </div>
-        <span className="text-sm font-bold text-gray-900 tracking-tight">
+        <span className="text-sm font-bold text-tx-primary tracking-tight">
           TeamFlow
         </span>
         {/* Close button — mobile only */}
         <button
           onClick={() => setSidebarOpen(false)}
-          className="ml-auto md:hidden text-gray-400 hover:text-gray-700 p-1"
+          className="ml-auto md:hidden text-tx-muted hover:text-tx-primary p-1 transition-colors"
           aria-label="Close menu"
         >
           <X size={18} strokeWidth={1.8} />
@@ -98,7 +119,7 @@ export default function Layout({ children }) {
       </div>
 
       {/* Org switcher */}
-      <div className="px-3 py-3 border-b border-gray-100 flex-shrink-0">
+      <div className="px-3 py-3 border-b border-line flex-shrink-0">
         <SidebarOrgSwitcher />
       </div>
 
@@ -113,13 +134,13 @@ export default function Layout({ children }) {
                 to={to}
                 className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                   active
-                    ? 'bg-brand-50 text-brand-700'
-                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                    ? 'bg-accent-bg text-accent-text'
+                    : 'text-tx-secondary hover:bg-surface-2 hover:text-tx-primary'
                 }`}
               >
                 <Icon
                   size={16}
-                  className={active ? 'text-brand-600' : 'text-gray-400'}
+                  className={active ? 'text-accent' : 'text-tx-muted'}
                   strokeWidth={active ? 2.2 : 1.8}
                 />
                 {label}
@@ -130,28 +151,36 @@ export default function Layout({ children }) {
       </nav>
 
       {/* Bottom section */}
-      <div className="flex-shrink-0 border-t border-gray-100">
+      <div className="flex-shrink-0 border-t border-line">
         {auth?.org && <SidebarUsageWidget />}
 
-        {/* User row */}
+        {/* User row + theme toggle */}
         <div className="px-3 py-3 flex items-center gap-2.5">
-          <div className="w-7 h-7 rounded-full bg-brand-100 text-brand-700 text-xs font-bold flex items-center justify-center flex-shrink-0">
+          {/* Avatar */}
+          <div className="w-7 h-7 rounded-full bg-accent-bg text-accent-text text-xs font-bold flex items-center justify-center flex-shrink-0">
             {userInitial}
           </div>
+
+          {/* Name + email */}
           <div className="flex-1 min-w-0 flex flex-col justify-center">
             {auth?.user?.name && (
-              <span className="text-sm font-medium text-gray-900 truncate leading-tight">
+              <span className="text-sm font-medium text-tx-primary truncate leading-tight">
                 {auth.user.name}
               </span>
             )}
-            <span className={`text-xs text-gray-500 truncate leading-tight ${auth?.user?.name ? 'mt-0.5' : ''}`}>
+            <span className={`text-xs text-tx-muted truncate leading-tight ${auth?.user?.name ? 'mt-0.5' : ''}`}>
               {auth?.user?.email}
             </span>
           </div>
+
+          {/* Theme toggle */}
+          <ThemeToggle />
+
+          {/* Sign out */}
           <button
             onClick={handleLogout}
             title="Sign out"
-            className="flex-shrink-0 text-gray-400 hover:text-gray-700 transition-colors"
+            className="flex-shrink-0 text-tx-muted hover:text-tx-primary transition-colors p-1"
           >
             <LogOut size={15} strokeWidth={1.8} />
           </button>
@@ -161,10 +190,10 @@ export default function Layout({ children }) {
   );
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
+    <div className="flex min-h-screen bg-surface-0">
 
       {/* ── DESKTOP sidebar (hidden below md) ─────────────────── */}
-      <aside className="hidden md:flex fixed inset-y-0 left-0 w-[220px] flex-col bg-white border-r border-gray-200 z-30">
+      <aside className="hidden md:flex fixed inset-y-0 left-0 w-[220px] flex-col bg-surface-1 border-r border-line z-30">
         {sidebarContents}
       </aside>
 
@@ -182,7 +211,7 @@ export default function Layout({ children }) {
         ref={sidebarRef}
         className={`
           fixed inset-y-0 left-0 w-[220px] flex flex-col
-          bg-white border-r border-gray-200 z-50
+          bg-surface-1 border-r border-line z-50
           transform transition-transform duration-200 ease-in-out
           md:hidden
           ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
@@ -192,34 +221,37 @@ export default function Layout({ children }) {
       </aside>
 
       {/* ── Main area ─────────────────────────────────────────── */}
-      <div className="flex-1 flex flex-col min-h-screen
-                      md:ml-[220px]">
+      <div className="flex-1 flex flex-col min-h-screen md:ml-[220px]">
 
         {/* Mobile top bar — visible only below md */}
-        <header className="md:hidden sticky top-0 z-30 h-14 bg-white border-b border-gray-100 flex items-center px-4 gap-3">
+        <header className="md:hidden sticky top-0 z-30 h-14 bg-surface-1 border-b border-line flex items-center px-4 gap-3">
           <button
             onClick={() => setSidebarOpen(true)}
-            className="text-gray-500 hover:text-gray-800 p-1 -ml-1"
+            className="text-tx-muted hover:text-tx-primary p-1 -ml-1 transition-colors"
             aria-label="Open menu"
           >
             <Menu size={22} strokeWidth={1.8} />
           </button>
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-md bg-brand-600 flex items-center justify-center">
+
+          <div className="flex items-center gap-2 flex-1">
+            <div className="w-6 h-6 rounded-md bg-accent flex items-center justify-center">
               <Zap size={12} className="text-white" strokeWidth={2.5} />
             </div>
-            <span className="text-sm font-bold text-gray-900 tracking-tight">
+            <span className="text-sm font-bold text-tx-primary tracking-tight">
               TeamFlow
             </span>
           </div>
+
+          {/* Theme toggle in mobile top bar too */}
+          <ThemeToggle />
         </header>
 
         {/* Page content */}
         <main className="flex-1 w-full flex flex-col">
           {!auth?.org && !pathname.startsWith('/invites') && !pathname.startsWith('/settings') ? (
             <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
-              <h2 className="text-2xl font-bold text-gray-900">Welcome to TeamFlow!</h2>
-              <p className="mt-2 text-gray-600 max-w-sm">
+              <h2 className="text-2xl font-bold text-tx-primary">Welcome to TeamFlow!</h2>
+              <p className="mt-2 text-tx-secondary max-w-sm">
                 You don't belong to any workspace yet. Create a new workspace from the sidebar menu to get started.
               </p>
             </div>

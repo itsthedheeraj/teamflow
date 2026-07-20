@@ -58,18 +58,21 @@ router.post(
   async (req, res, next) => {
     if (!validate(req, res)) return;
     try {
-      await createInvite({
+      const { inviteUrl, inviterName, orgName, email } = await createInvite({
         orgId: req.user.orgId,
         invitedBy: req.user.userId,
         email: req.body.email,
         role: req.body.role || 'member',
       });
-      // inviteUrl is intentionally not returned here — the link is
-      // delivered by email (Resend) and logged to the server console
-      // for local dev. Exposing it in the API response would let anyone
-      // with network access bypass the email step.
+      // Return the invite data so the frontend can send the email via EmailJS.
+      // The invite link is only revealed here — the frontend is responsible
+      // for calling EmailJS and should not display the raw link on success.
       res.status(201).json({
-        message: `Invite sent to ${req.body.email}`,
+        message: `Invite created for ${req.body.email}`,
+        inviteUrl,
+        inviterName,
+        orgName,
+        email,
       });
     } catch (err) {
       next(err);
@@ -175,12 +178,19 @@ router.post(
   async (req, res, next) => {
     if (!validate(req, res)) return;
     try {
-      await requestOrgTransfer({
+      const { transferUrl, orgName, toEmail, ownerName } = await requestOrgTransfer({
         orgId: req.user.orgId,
         fromUserId: req.user.userId,
         email: req.body.email,
       });
-      res.json({ message: 'Transfer request sent' });
+      // Return transfer data so the frontend can send the email via EmailJS.
+      res.json({
+        message: 'Transfer request created',
+        transferUrl,
+        orgName,
+        toEmail,
+        ownerName,
+      });
     } catch (err) {
       next(err);
     }

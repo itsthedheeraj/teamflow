@@ -8,26 +8,31 @@ import { MessageSquare, Plus, X, Calendar, Edit2, Trash2 } from 'lucide-react';
 
 const STATUSES = ['todo', 'in_progress', 'done'];
 const STATUS_LABELS = { todo: 'To Do', in_progress: 'In Progress', done: 'Done' };
+
+// Status badge: uses semantic status tokens so they adapt to dark mode
 const STATUS_COLORS = {
-  todo: 'bg-gray-100 text-gray-600',
-  in_progress: 'bg-yellow-100 text-yellow-700',
-  done: 'bg-green-100 text-green-700',
+  todo:        'bg-surface-2 text-tx-secondary',
+  in_progress: 'bg-status-warning-bg text-status-warning-text',
+  done:        'bg-status-success-bg text-status-success-text',
 };
 
 export default function TaskBoardPage() {
   const { projectId } = useParams();
-  const { auth } = useAuth();
+  const { auth }      = useAuth();
   const { showToast, confirm } = useUI();
 
-  const [project, setProject] = useState(null);
-  const [tasks, setTasks] = useState([]);
-  const [members, setMembers] = useState([]);
-  const [showForm, setShowForm] = useState(false);
+  const [project, setProject]         = useState(null);
+  const [tasks, setTasks]             = useState([]);
+  const [members, setMembers]         = useState([]);
+  const [showForm, setShowForm]       = useState(false);
   const [editingTask, setEditingTask] = useState(null);
-  const [form, setForm] = useState({ title: '', description: '', assignedTo: '' });
-  const [loading, setLoading] = useState(false);
+  const [form, setForm]               = useState({ title: '', description: '', assignedTo: '' });
+  const [loading, setLoading]         = useState(false);
 
-  const canManage = auth?.role === 'admin' || auth?.role === 'owner' || project?.team_lead_id === auth?.user?.id;
+  const canManage =
+    auth?.role === 'admin' ||
+    auth?.role === 'owner' ||
+    project?.team_lead_id === auth?.user?.id;
 
   async function load() {
     try {
@@ -54,9 +59,9 @@ export default function TaskBoardPage() {
 
   function startEdit(task) {
     setForm({
-      title: task.title,
+      title:      task.title,
       description: task.description || '',
-      assignedTo: task.assigned_to || '',
+      assignedTo:  task.assigned_to || '',
     });
     setEditingTask(task);
     setShowForm(true);
@@ -67,9 +72,9 @@ export default function TaskBoardPage() {
     setLoading(true);
     try {
       const payload = {
-        title: form.title,
+        title:       form.title,
         description: form.description || undefined,
-        assignedTo: form.assignedTo || undefined,
+        assignedTo:  form.assignedTo  || undefined,
       };
       if (editingTask) {
         await api.patch(`/tasks/${editingTask.id}`, payload);
@@ -78,9 +83,7 @@ export default function TaskBoardPage() {
       }
       resetForm();
       load();
-      if (!editingTask) {
-        window.dispatchEvent(new Event('usage:refresh'));
-      }
+      if (!editingTask) window.dispatchEvent(new Event('usage:refresh'));
       showToast(editingTask ? 'Task updated' : 'Task created', 'success');
     } catch (err) {
       showToast(err.message, 'error');
@@ -131,23 +134,27 @@ export default function TaskBoardPage() {
     <Layout>
       <div className="space-y-6">
         {/* Breadcrumb */}
-        <div className="flex items-center gap-2 text-sm text-gray-500">
-          <Link to="/dashboard" className="hover:text-gray-900">Projects</Link>
+        <div className="flex items-center gap-2 text-sm text-tx-muted">
+          <Link to="/projects" className="hover:text-tx-primary transition-colors">
+            Projects
+          </Link>
           <span>/</span>
-          <span className="text-gray-900 font-medium">{project?.name ?? '…'}</span>
+          <span className="text-tx-primary font-medium">{project?.name ?? '…'}</span>
         </div>
 
+        {/* Page header */}
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">{project?.name}</h1>
+            <h1 className="text-2xl font-bold text-tx-primary">{project?.name}</h1>
             {project?.description && (
-              <p className="mt-1 text-sm text-gray-500">{project.description}</p>
+              <p className="mt-1 text-sm text-tx-secondary">{project.description}</p>
             )}
           </div>
           {canManage && (
             <button
               onClick={() => { resetForm(); setShowForm(true); }}
-              className="bg-brand-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-brand-700"
+              className="bg-accent text-white px-4 py-2 rounded-lg text-sm font-medium
+                hover:opacity-90 transition-opacity"
             >
               + Add task
             </button>
@@ -158,9 +165,9 @@ export default function TaskBoardPage() {
         {showForm && (
           <form
             onSubmit={handleSubmit}
-            className="bg-white border border-gray-200 rounded-xl p-6 space-y-4"
+            className="bg-surface-1 border border-line rounded-xl p-6 space-y-4"
           >
-            <h2 className="font-semibold text-gray-800">
+            <h2 className="font-semibold text-tx-primary">
               {editingTask ? 'Edit task' : 'New task'}
             </h2>
             <input
@@ -168,21 +175,26 @@ export default function TaskBoardPage() {
               onChange={(e) => setForm({ ...form, title: e.target.value })}
               placeholder="Task title"
               required
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+              className="w-full border border-line-strong rounded-lg px-3 py-2 text-sm
+                bg-surface-2 text-tx-primary placeholder:text-tx-muted
+                focus:outline-none focus:ring-2 focus:ring-accent"
             />
             <textarea
               value={form.description}
               onChange={(e) => setForm({ ...form, description: e.target.value })}
               placeholder="Description (optional)"
               rows={2}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none resize-none"
+              className="w-full border border-line-strong rounded-lg px-3 py-2 text-sm
+                bg-surface-2 text-tx-primary placeholder:text-tx-muted
+                focus:outline-none resize-none"
             />
             <div>
-              <label className="block text-sm text-gray-600 mb-1">Assign to</label>
+              <label className="block text-sm text-tx-secondary mb-1">Assign to</label>
               <select
                 value={form.assignedTo}
                 onChange={(e) => setForm({ ...form, assignedTo: e.target.value })}
-                className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none w-full"
+                className="border border-line-strong rounded-lg px-3 py-2 text-sm
+                  bg-surface-2 text-tx-primary focus:outline-none w-full"
               >
                 <option value="">Unassigned</option>
                 {members.map((m) => (
@@ -196,14 +208,15 @@ export default function TaskBoardPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="bg-brand-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-brand-700 disabled:opacity-50"
+                className="bg-accent text-white px-4 py-2 rounded-lg text-sm font-medium
+                  hover:opacity-90 disabled:opacity-50 transition-opacity"
               >
                 {loading ? 'Saving…' : editingTask ? 'Save changes' : 'Create task'}
               </button>
               <button
                 type="button"
                 onClick={resetForm}
-                className="px-4 py-2 rounded-lg text-sm text-gray-600 hover:bg-gray-100"
+                className="px-4 py-2 rounded-lg text-sm text-tx-secondary hover:bg-surface-2 transition-colors"
               >
                 Cancel
               </button>
@@ -219,11 +232,12 @@ export default function TaskBoardPage() {
                 <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${STATUS_COLORS[status]}`}>
                   {STATUS_LABELS[status]}
                 </span>
-                <span className="text-xs text-gray-400">{tasksByStatus[status].length}</span>
+                <span className="text-xs text-tx-muted">{tasksByStatus[status].length}</span>
               </div>
 
               {tasksByStatus[status].length === 0 ? (
-                <div className="border-2 border-dashed border-gray-200 rounded-xl h-24 flex items-center justify-center text-xs text-gray-400">
+                <div className="border-2 border-dashed border-line-dashed rounded-xl h-24
+                  flex items-center justify-center text-xs text-tx-muted">
                   No tasks
                 </div>
               ) : (
@@ -248,56 +262,56 @@ export default function TaskBoardPage() {
   );
 }
 
+// ─── TaskCard ─────────────────────────────────────────────────────
+
 function TaskCard({ task, canManage, onStatusChange, onEdit, onDelete, currentUserId, onUpdateNote }) {
   const isAssignedToMe = task.assigned_to === currentUserId;
-  const [isEditingNote, setIsEditingNote] = useState(false);
-  const [noteText, setNoteText] = useState(task.latest_note || '');
-  const [isNoteExpanded, setIsNoteExpanded] = useState(false);
-  const [isDescExpanded, setIsDescExpanded] = useState(false);
+  const [isEditingNote,   setIsEditingNote]   = useState(false);
+  const [noteText,        setNoteText]        = useState(task.latest_note || '');
+  const [isNoteExpanded,  setIsNoteExpanded]  = useState(false);
+  const [isDescExpanded,  setIsDescExpanded]  = useState(false);
   const noteRef = useRef(null);
   const descRef = useRef(null);
 
   useEffect(() => {
     function handleClickOutside(e) {
-      if (noteRef.current && !noteRef.current.contains(e.target)) {
-        setIsNoteExpanded(false);
-      }
-      if (descRef.current && !descRef.current.contains(e.target)) {
-        setIsDescExpanded(false);
-      }
+      if (noteRef.current && !noteRef.current.contains(e.target)) setIsNoteExpanded(false);
+      if (descRef.current && !descRef.current.contains(e.target)) setIsDescExpanded(false);
     }
     if (isNoteExpanded || isDescExpanded) {
       document.addEventListener('mousedown', handleClickOutside);
     }
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isNoteExpanded, isDescExpanded]);
 
-  const handleSaveNote = () => {
+  function handleSaveNote() {
     onUpdateNote(task.id, noteText);
     setIsEditingNote(false);
-  };
+  }
 
   const formattedDate = new Date(task.created_at).toLocaleDateString('en-US', {
-    month: 'short', day: 'numeric'
+    month: 'short', day: 'numeric',
   });
-  
-  const formattedNoteDate = task.latest_note_updated_at ? new Date(task.latest_note_updated_at).toLocaleDateString('en-US', {
-    month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'
-  }) : '';
+  const formattedNoteDate = task.latest_note_updated_at
+    ? new Date(task.latest_note_updated_at).toLocaleDateString('en-US', {
+        month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
+      })
+    : '';
 
   return (
-    <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-4 shadow-sm hover:shadow-md transition-shadow group">
-      
+    <div className="bg-surface-1 border border-line rounded-xl p-4 space-y-4
+      shadow-sm hover:shadow-md transition-shadow group">
+
       {/* Header: Title & Actions */}
       <div className="flex items-start justify-between gap-2">
-        <p className="text-[15px] font-semibold text-gray-900 leading-snug">{task.title}</p>
+        <p className="text-[15px] font-semibold text-tx-primary leading-snug">
+          {task.title}
+        </p>
         <div className="flex gap-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
           {canManage && (
             <button
               onClick={() => onEdit(task)}
-              className="p-1 text-gray-400 hover:text-brand-600 hover:bg-brand-50 rounded"
+              className="p-1 text-tx-muted hover:text-accent hover:bg-accent-bg rounded transition-colors"
               title="Edit Task"
             >
               <Edit2 size={14} />
@@ -306,7 +320,8 @@ function TaskCard({ task, canManage, onStatusChange, onEdit, onDelete, currentUs
           {canManage && (
             <button
               onClick={() => onDelete(task.id)}
-              className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"
+              className="p-1 text-tx-muted hover:text-status-danger-text
+                hover:bg-status-danger-bg rounded transition-colors"
               title="Delete Task"
             >
               <Trash2 size={14} />
@@ -318,13 +333,13 @@ function TaskCard({ task, canManage, onStatusChange, onEdit, onDelete, currentUs
       {/* Description */}
       {task.description && (
         <div ref={descRef}>
-          <p className={`text-sm text-gray-600 ${isDescExpanded ? 'whitespace-pre-wrap' : 'line-clamp-2'}`}>
+          <p className={`text-sm text-tx-secondary ${isDescExpanded ? 'whitespace-pre-wrap' : 'line-clamp-2'}`}>
             {task.description}
           </p>
           {task.description.length > 80 && !isDescExpanded && (
-            <button 
+            <button
               onClick={() => setIsDescExpanded(true)}
-              className="text-[11px] text-brand-600 font-medium hover:underline mt-1 block"
+              className="text-[11px] text-accent font-medium hover:underline mt-1 block"
             >
               Read more
             </button>
@@ -332,31 +347,43 @@ function TaskCard({ task, canManage, onStatusChange, onEdit, onDelete, currentUs
         </div>
       )}
 
-      {/* Latest Note Section */}
+      {/* Latest Note */}
       <div className="mt-2">
         {!isEditingNote ? (
           <div className="relative">
             {task.latest_note ? (
-              <div ref={noteRef} className="bg-amber-50/50 border border-amber-100 rounded-lg p-3 space-y-1.5 group/note relative">
-                <div className="flex items-center gap-1.5 text-xs text-amber-800/70 font-medium">
-                  <MessageSquare size={12} className="text-amber-500" />
-                  <span>Latest Note by {task.latest_note_by_name || (task.latest_note_by_email && task.latest_note_by_email.split('@')[0]) || 'Someone'}</span>
-                  <span className="text-amber-800/40">• {formattedNoteDate}</span>
+              <div
+                ref={noteRef}
+                className="bg-status-note-bg border border-status-note-border
+                  rounded-lg p-3 space-y-1.5 group/note relative"
+              >
+                <div className="flex items-center gap-1.5 text-xs text-status-note-text/70 font-medium">
+                  <MessageSquare size={12} className="text-status-note-text opacity-70" />
+                  <span>
+                    Latest Note by{' '}
+                    {task.latest_note_by_name ||
+                      (task.latest_note_by_email && task.latest_note_by_email.split('@')[0]) ||
+                      'Someone'}
+                  </span>
+                  <span className="opacity-50">• {formattedNoteDate}</span>
                 </div>
-                <p className={`text-sm text-amber-900 ${isNoteExpanded ? 'whitespace-pre-wrap' : 'truncate'}`}>{task.latest_note}</p>
-                
-                {task.latest_note && task.latest_note.length > 50 && !isNoteExpanded && (
-                  <button 
+                <p className={`text-sm text-status-note-text ${isNoteExpanded ? 'whitespace-pre-wrap' : 'truncate'}`}>
+                  {task.latest_note}
+                </p>
+                {task.latest_note.length > 50 && !isNoteExpanded && (
+                  <button
                     onClick={() => setIsNoteExpanded(true)}
-                    className="text-[11px] text-amber-700 font-medium hover:underline block"
+                    className="text-[11px] text-status-note-text/80 font-medium hover:underline block"
                   >
                     Read more
                   </button>
                 )}
-                
                 <button
                   onClick={() => { setNoteText(task.latest_note || ''); setIsEditingNote(true); }}
-                  className="absolute top-2 right-2 p-1 text-amber-600/0 group-hover/note:text-amber-600/50 hover:!text-amber-600 hover:bg-amber-100 rounded transition-all"
+                  className="absolute top-2 right-2 p-1 text-transparent
+                    group-hover/note:text-status-note-text/50
+                    hover:!text-status-note-text hover:bg-status-note-border/30
+                    rounded transition-all"
                   title="Edit Note"
                 >
                   <Edit2 size={12} />
@@ -365,32 +392,36 @@ function TaskCard({ task, canManage, onStatusChange, onEdit, onDelete, currentUs
             ) : (
               <button
                 onClick={() => setIsEditingNote(true)}
-                className="flex items-center gap-1.5 text-xs font-medium text-gray-400 hover:text-brand-600 transition-colors"
+                className="flex items-center gap-1.5 text-xs font-medium
+                  text-tx-muted hover:text-accent transition-colors"
               >
                 <Plus size={13} strokeWidth={2.5} /> Add Note
               </button>
             )}
           </div>
         ) : (
-          <div className="bg-gray-50 border border-gray-200 rounded-lg p-2.5 space-y-2">
+          <div className="bg-surface-2 border border-line rounded-lg p-2.5 space-y-2">
             <textarea
               autoFocus
               value={noteText}
               onChange={(e) => setNoteText(e.target.value)}
               placeholder="What's the latest update?"
-              className="w-full text-sm bg-white border border-gray-200 rounded p-2 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 resize-none"
+              className="w-full text-sm bg-surface-1 border border-line rounded p-2
+                text-tx-primary placeholder:text-tx-muted
+                focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent resize-none"
               rows={2}
             />
             <div className="flex gap-2 justify-end">
               <button
                 onClick={() => setIsEditingNote(false)}
-                className="text-xs font-medium text-gray-500 hover:text-gray-700 px-2 py-1"
+                className="text-xs font-medium text-tx-muted hover:text-tx-primary px-2 py-1 transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={handleSaveNote}
-                className="text-xs font-medium bg-brand-600 text-white hover:bg-brand-700 px-3 py-1 rounded shadow-sm"
+                className="text-xs font-medium bg-accent text-white
+                  hover:opacity-90 px-3 py-1 rounded shadow-sm transition-opacity"
               >
                 Save
               </button>
@@ -400,19 +431,24 @@ function TaskCard({ task, canManage, onStatusChange, onEdit, onDelete, currentUs
       </div>
 
       {/* Footer: Meta & Status */}
-      <div className="flex items-center justify-between gap-3 pt-2 border-t border-gray-100 mt-2">
+      <div className="flex items-center justify-between gap-3 pt-2 border-t border-line mt-2">
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1.5 text-xs text-gray-400" title="Created on">
+          <div className="flex items-center gap-1.5 text-xs text-tx-muted" title="Created on">
             <Calendar size={13} />
             <span>{formattedDate}</span>
           </div>
 
           {task.assigned_to_email && (
             <div
-              className={`flex items-center justify-center w-6 h-6 rounded-full text-[10px] font-bold text-white shadow-sm ring-2 ring-white ${
-                isAssignedToMe ? 'bg-brand-500' : 'bg-gray-400'
-              }`}
-              title={task.assigned_to_name ? `${task.assigned_to_name} (${task.assigned_to_email})` : task.assigned_to_email}
+              className={`flex items-center justify-center w-6 h-6 rounded-full
+                text-[10px] font-bold text-white shadow-sm ring-2 ring-surface-1 ${
+                  isAssignedToMe ? 'bg-accent' : 'bg-tx-muted'
+                }`}
+              title={
+                task.assigned_to_name
+                  ? `${task.assigned_to_name} (${task.assigned_to_email})`
+                  : task.assigned_to_email
+              }
             >
               {(task.assigned_to_name?.[0] || task.assigned_to_email[0]).toUpperCase()}
             </div>
@@ -424,10 +460,18 @@ function TaskCard({ task, canManage, onStatusChange, onEdit, onDelete, currentUs
           value={task.status}
           onChange={(e) => onStatusChange(task.id, e.target.value)}
           disabled={!canManage && !isAssignedToMe}
-          className={`text-xs font-medium border border-gray-200 rounded-md px-2 py-1 focus:outline-none focus:ring-1 focus:ring-brand-500 shadow-sm ${
-            !canManage && !isAssignedToMe ? 'opacity-50 cursor-not-allowed bg-gray-50' : 'bg-white hover:bg-gray-50'
-          }`}
-          title={!canManage && !isAssignedToMe ? "You can only change the status of tasks assigned to you" : ""}
+          title={
+            !canManage && !isAssignedToMe
+              ? 'You can only change the status of tasks assigned to you'
+              : ''
+          }
+          className={`text-xs font-medium border border-line rounded-md px-2 py-1
+            focus:outline-none focus:ring-1 focus:ring-accent shadow-sm
+            bg-surface-2 text-tx-primary transition-colors ${
+              !canManage && !isAssignedToMe
+                ? 'opacity-50 cursor-not-allowed'
+                : 'hover:bg-surface-1'
+            }`}
         >
           <option value="todo">To Do</option>
           <option value="in_progress">In progress</option>
