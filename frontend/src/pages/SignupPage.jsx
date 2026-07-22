@@ -1,21 +1,23 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Sun, Moon } from 'lucide-react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { LayoutDashboard, CheckSquare, Github, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import { api } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
-import { useTheme } from '../context/ThemeContext';
 
 export default function SignupPage() {
   const navigate = useNavigate();
   const { setAuth } = useAuth();
-  const { theme, toggleTheme } = useTheme();
+  const location = useLocation();
+  const from = location.state?.from?.pathname || '/projects';
 
   const [form, setForm]     = useState({ name: '', email: '', password: '' });
   const [error, setError]   = useState('');
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   function handleChange(e) {
     setForm({ ...form, [e.target.name]: e.target.value });
+    setError(''); // clear error when typing
   }
 
   async function handleSubmit(e) {
@@ -32,123 +34,153 @@ export default function SignupPage() {
       });
       navigate('/projects');
     } catch (err) {
-      setError(err.message);
+      setError(err.message || 'Failed to create account');
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-surface-0 px-4">
-      {/* Theme toggle — top-right corner */}
-      <button
-        onClick={toggleTheme}
-        title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-        aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-        className="fixed top-4 right-4 p-2 rounded-lg text-tx-muted
-          hover:text-tx-primary hover:bg-surface-2 transition-colors"
-      >
-        {theme === 'dark'
-          ? <Sun  size={17} strokeWidth={1.8} />
-          : <Moon size={17} strokeWidth={1.8} />}
-      </button>
+    <div className="min-h-screen flex bg-surface-0">
+      {/* Left Panel - Branding */}
+      <div className="hidden lg:flex flex-col justify-between w-1/2 bg-accent text-white p-12">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">TeamFlow</h1>
+        </div>
+        
+        <div className="max-w-md">
+          <h2 className="text-4xl font-bold leading-tight mb-4">
+            Manage better projects.<br/>Empower every team.
+          </h2>
+          <p className="text-white/80 text-lg mb-12">
+            From tasks to GitHub integration — everything in one place.
+          </p>
 
-      <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-tx-primary">TeamFlow</h1>
-          <p className="mt-2 text-tx-secondary">Create an account</p>
+          <div className="space-y-6">
+            <div className="flex items-center gap-4">
+              <div className="p-2 bg-white/10 rounded-lg">
+                <LayoutDashboard size={20} className="text-white" />
+              </div>
+              <span className="text-white/90 font-medium">Custom task boards</span>
+            </div>
+            <div className="flex items-center gap-4">
+              <div className="p-2 bg-white/10 rounded-lg">
+                <CheckSquare size={20} className="text-white" />
+              </div>
+              <span className="text-white/90 font-medium">Progress tracking</span>
+            </div>
+            <div className="flex items-center gap-4">
+              <div className="p-2 bg-white/10 rounded-lg">
+                <Github size={20} className="text-white" />
+              </div>
+              <span className="text-white/90 font-medium">One-click GitHub integration</span>
+            </div>
+          </div>
         </div>
 
-        <form
-          onSubmit={handleSubmit}
-          className="bg-surface-1 shadow-sm rounded-xl p-8 space-y-5
-            border border-line"
-        >
-          <h2 className="text-xl font-semibold text-tx-primary">Get started</h2>
-
-          <Link
-            to="/"
-            className="inline-flex items-center gap-1.5 text-sm text-tx-muted
-              hover:text-tx-primary transition-colors -mt-1"
-          >
-            <ArrowLeft size={15} strokeWidth={2} />
-            Back
-          </Link>
-
-          {error && (
-            <div className="bg-status-danger-bg border border-status-danger-text/20
-              text-status-danger-text text-sm rounded-lg px-4 py-3">
-              {error}
-            </div>
-          )}
-
-          <div>
-            <label className="block text-sm font-medium text-tx-secondary mb-1">
-              Full Name
-            </label>
-            <input
-              name="name"
-              value={form.name}
-              onChange={handleChange}
-              placeholder="Jane Doe"
-              required
-              className="w-full border border-line-strong rounded-lg px-3 py-2 text-sm
-                bg-surface-2 text-tx-primary placeholder:text-tx-muted
-                focus:outline-none focus:ring-2 focus:ring-accent"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-tx-secondary mb-1">
-              Work email
-            </label>
-            <input
-              name="email"
-              type="email"
-              value={form.email}
-              onChange={handleChange}
-              placeholder="you@company.com"
-              required
-              className="w-full border border-line-strong rounded-lg px-3 py-2 text-sm
-                bg-surface-2 text-tx-primary placeholder:text-tx-muted
-                focus:outline-none focus:ring-2 focus:ring-accent"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-tx-secondary mb-1">
-              Choose a password
-            </label>
-            <input
-              name="password"
-              type="password"
-              value={form.password}
-              onChange={handleChange}
-              placeholder="Min. 8 characters"
-              required
-              minLength={8}
-              className="w-full border border-line-strong rounded-lg px-3 py-2 text-sm
-                bg-surface-2 text-tx-primary placeholder:text-tx-muted
-                focus:outline-none focus:ring-2 focus:ring-accent"
-            />
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-accent text-white py-2 rounded-lg text-sm font-medium
-              hover:opacity-90 disabled:opacity-50 transition-opacity"
-          >
-            {loading ? 'Creating account…' : 'Create account'}
-          </button>
-
-          <p className="text-center text-sm text-tx-muted">
-            Already have an account?{' '}
-            <Link to="/login" className="text-accent hover:underline font-medium">
-              Sign in
-            </Link>
+        <div>
+          <p className="text-white/70 text-sm">
+            Trusted by top engineering teams and open source communities.
           </p>
-        </form>
+        </div>
+      </div>
+
+      {/* Right Panel - Form */}
+      <div className="w-full lg:w-1/2 flex items-center justify-center p-8 lg:p-24 bg-surface-0">
+        <div className="w-full max-w-md">
+          <div className="mb-8">
+            <h2 className="text-3xl font-bold text-tx-primary mb-2">Create an account</h2>
+            <p className="text-tx-secondary text-sm">Sign up to get started with TeamFlow</p>
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-5">
+            {error && (
+              <div className="bg-status-danger-bg border border-status-danger-text/20 p-3 rounded-lg flex items-start gap-2 animate-in fade-in slide-in-from-top-1">
+                <AlertCircle className="text-status-danger-text shrink-0 mt-0.5" size={16} />
+                <p className="text-status-danger-text text-sm font-medium">{error}</p>
+              </div>
+            )}
+
+            <div>
+              <label className="block text-sm font-medium text-tx-secondary mb-1.5">
+                Full Name
+              </label>
+              <input
+                name="name"
+                value={form.name}
+                onChange={handleChange}
+                placeholder="Jane Doe"
+                required
+                className="w-full border border-line-strong rounded-lg px-4 py-2.5 text-sm
+                  bg-surface-1 text-tx-primary placeholder:text-tx-muted
+                  focus:outline-none focus:ring-2 focus:ring-accent"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-tx-secondary mb-1.5">
+                Work email
+              </label>
+              <input
+                name="email"
+                type="email"
+                value={form.email}
+                onChange={handleChange}
+                placeholder="you@company.com"
+                required
+                className="w-full border border-line-strong rounded-lg px-4 py-2.5 text-sm
+                  bg-surface-1 text-tx-primary placeholder:text-tx-muted
+                  focus:outline-none focus:ring-2 focus:ring-accent"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-tx-secondary mb-1.5">
+                Choose a password
+              </label>
+              <div className="relative">
+                <input
+                  name="password"
+                  type={showPassword ? 'text' : 'password'}
+                  value={form.password}
+                  onChange={handleChange}
+                  placeholder="Min. 8 characters"
+                  required
+                  minLength={8}
+                  className="w-full border border-line-strong rounded-lg pl-4 pr-10 py-2.5 text-sm
+                    bg-surface-1 text-tx-primary placeholder:text-tx-muted
+                    focus:outline-none focus:ring-2 focus:ring-accent"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-tx-muted hover:text-tx-primary transition-colors"
+                >
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-accent text-white py-2.5 rounded-lg text-sm font-medium
+                hover:opacity-90 disabled:opacity-50 transition-opacity mt-2"
+            >
+              {loading ? 'Creating account...' : 'Create account'}
+            </button>
+            
+            <div className="mt-8 text-center space-y-4">
+              <p className="text-sm text-tx-muted">Already have an account?</p>
+              <Link
+                to="/login"
+                className="block w-full border border-line-strong py-2.5 rounded-lg text-sm font-medium text-tx-primary hover:bg-surface-2 transition-colors"
+              >
+                Sign in
+              </Link>
+            </div>
+          </form>
+        </div>
       </div>
     </div>
   );

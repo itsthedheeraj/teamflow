@@ -4,7 +4,8 @@ import { api } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
 import { useUI } from '../context/UIContext';
 import Layout from '../components/Layout';
-import { MessageSquare, Plus, X, Calendar, Edit2, Trash2 } from 'lucide-react';
+import { MessageSquare, Plus, X, Calendar, Edit2, Trash2, Github, Settings, Sparkles } from 'lucide-react';
+import Modal from '../components/Modal';
 
 const STATUSES = ['todo', 'in_progress', 'done'];
 const STATUS_LABELS = { todo: 'To Do', in_progress: 'In Progress', done: 'Done' };
@@ -14,6 +15,16 @@ const STATUS_COLORS = {
   todo:        'bg-surface-2 text-tx-secondary',
   in_progress: 'bg-status-warning-bg text-status-warning-text',
   done:        'bg-status-success-bg text-status-success-text',
+};
+
+const getRepoPath = (urlOrPath) => {
+  if (!urlOrPath) return '';
+  try {
+    const url = new URL(urlOrPath);
+    return url.pathname.replace(/^\/|\/$/g, '');
+  } catch (e) {
+    return urlOrPath.replace(/^\/|\/$/g, '');
+  }
 };
 
 export default function TaskBoardPage() {
@@ -28,6 +39,13 @@ export default function TaskBoardPage() {
   const [editingTask, setEditingTask] = useState(null);
   const [form, setForm]               = useState({ title: '', description: '', assignedTo: '' });
   const [loading, setLoading]         = useState(false);
+
+  // GitHub integration state
+  const [repoData, setRepoData]       = useState(null);
+  const [commitData, setCommitData]   = useState(null);
+  const [showRepoModal, setShowRepoModal] = useState(false);
+  const [repoInput, setRepoInput]     = useState('');
+  const [repoLoading, setRepoLoading] = useState(false);
 
   const canManage =
     auth?.role === 'admin' ||
@@ -44,12 +62,50 @@ export default function TaskBoardPage() {
       setProject(projData.project);
       setTasks(tasksData.tasks || []);
       setMembers(membersData.members || []);
+      setRepoInput(projData.project?.github_repo || '');
     } catch (err) {
       showToast(err.message, 'error');
     }
   }
 
   useEffect(() => { load(); }, [projectId]);
+
+  useEffect(() => {
+    async function fetchGithub() {
+      const repoPath = getRepoPath(project?.github_repo);
+      if (!repoPath) return;
+      try {
+        const repoRes = await fetch(`https://api.github.com/repos/${repoPath}`);
+        if (repoRes.ok) {
+          setRepoData(await repoRes.json());
+        }
+        
+        const commitRes = await fetch(`https://api.github.com/repos/${repoPath}/commits?per_page=1`);
+        if (commitRes.ok) {
+          const commits = await commitRes.json();
+          setCommitData(commits[0]);
+        }
+      } catch (err) {
+        console.error('Failed to fetch github data', err);
+      }
+    }
+    fetchGithub();
+  }, [project?.github_repo]);
+
+  async function handleSaveRepo(e) {
+    e.preventDefault();
+    setRepoLoading(true);
+    try {
+      await api.patch(`/projects/${projectId}`, { github_repo: repoInput });
+      await load();
+      setShowRepoModal(false);
+      showToast('GitHub repository updated', 'success');
+    } catch (err) {
+      showToast(err.message, 'error');
+    } finally {
+      setRepoLoading(false);
+    }
+  }
 
   function resetForm() {
     setForm({ title: '', description: '', assignedTo: '' });
@@ -144,32 +200,77 @@ export default function TaskBoardPage() {
 
         {/* Page header */}
         <div className="flex items-center justify-between flex-wrap gap-3">
-          <div>
-            <h1 className="text-2xl font-bold text-tx-primary">{project?.name}</h1>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <h1 className="text-2xl font-bold text-tx-primary truncate">{project?.name}</h1>
+              {canManage && (
+                <button
+                  onClick={() => setShowRepoModal(true)}
+                  className="flex items-center gap-1.5 p-1.5 px-3 border border-line-strong text-tx-secondary hover:text-tx-primary hover:bg-surface-2 rounded-md transition-colors text-sm font-medium"
+                  title="Manage GitHub Link"
+                >
+                  <Github size={16} />
+                  GitHub Link
+                </button>
+              )}
+            </div>
             {project?.description && (
               <p className="mt-1 text-sm text-tx-secondary">{project.description}</p>
             )}
+            
+            {project?.github_repo && repoData && (
+              <div className="mt-4 p-4 bg-surface-2 border border-line rounded-lg">
+                <div className="flex flex-col gap-1.5 mt-2">
+                  <div className="flex items-center gap-1.5 text-tx-primary font-medium text-sm">
+                    <Github size={14} />
+                    <a href={repoData.html_url} target="_blank" rel="noreferrer" className="hover:underline">
+                      {repoData.full_name || getRepoPath(project.github_repo)}
+                    </a>
+                  </div>
+                  {repoData.description && (
+                    <p className="text-sm text-tx-secondary italic">
+                      {repoData.description}
+                    </p>
+                  )}
+                  {commitData && (
+                    <div className="text-xs text-tx-secondary truncate mt-1">
+                      <span className="font-semibold text-[10px] uppercase tracking-wider text-tx-muted bg-surface-2 px-1.5 py-0.5 rounded mr-1.5">Latest Commit</span>
+                      <a href={commitData.html_url} target="_blank" rel="noreferrer" className="text-accent hover:underline">
+                        {commitData.commit.message}
+                      </a>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
           {canManage && (
-            <button
-              onClick={() => { resetForm(); setShowForm(true); }}
-              className="bg-accent text-white px-4 py-2 rounded-lg text-sm font-medium
-                hover:opacity-90 transition-opacity"
-            >
-              + Add task
-            </button>
+            <div className="flex flex-col gap-2 shrink-0">
+              <button
+                onClick={() => { resetForm(); setShowForm(true); }}
+                className="bg-accent text-white px-4 py-2 rounded-lg text-sm font-medium
+                  hover:opacity-90 transition-opacity whitespace-nowrap"
+              >
+                + Add task
+              </button>
+              <button
+                className="flex items-center justify-center gap-1.5 text-xs font-medium text-accent hover:text-white hover:bg-accent px-4 py-2 rounded-lg transition-colors border border-accent/20 bg-accent/5 whitespace-nowrap"
+                onClick={(e) => e.preventDefault()}
+              >
+                <Sparkles size={14} />
+                Get suggestion
+              </button>
+            </div>
           )}
         </div>
 
-        {/* Task form */}
-        {showForm && (
-          <form
-            onSubmit={handleSubmit}
-            className="bg-surface-1 border border-line rounded-xl p-6 space-y-4"
-          >
-            <h2 className="font-semibold text-tx-primary">
-              {editingTask ? 'Edit task' : 'New task'}
-            </h2>
+        {/* Task form Modal */}
+        <Modal 
+          isOpen={showForm} 
+          onClose={resetForm}
+          title={editingTask ? 'Edit task' : 'New task'}
+        >
+          <form onSubmit={handleSubmit} className="space-y-4">
             <input
               value={form.title}
               onChange={(e) => setForm({ ...form, title: e.target.value })}
@@ -183,7 +284,7 @@ export default function TaskBoardPage() {
               value={form.description}
               onChange={(e) => setForm({ ...form, description: e.target.value })}
               placeholder="Description (optional)"
-              rows={2}
+              rows={3}
               className="w-full border border-line-strong rounded-lg px-3 py-2 text-sm
                 bg-surface-2 text-tx-primary placeholder:text-tx-muted
                 focus:outline-none resize-none"
@@ -204,7 +305,14 @@ export default function TaskBoardPage() {
                 ))}
               </select>
             </div>
-            <div className="flex gap-3">
+            <div className="flex gap-3 justify-end pt-2 border-t border-line">
+              <button
+                type="button"
+                onClick={resetForm}
+                className="px-4 py-2 rounded-lg text-sm text-tx-secondary hover:bg-surface-2 transition-colors"
+              >
+                Cancel
+              </button>
               <button
                 type="submit"
                 disabled={loading}
@@ -213,16 +321,52 @@ export default function TaskBoardPage() {
               >
                 {loading ? 'Saving…' : editingTask ? 'Save changes' : 'Create task'}
               </button>
+            </div>
+          </form>
+        </Modal>
+
+        {/* GitHub Repo Modal */}
+        <Modal
+          isOpen={showRepoModal}
+          onClose={() => setShowRepoModal(false)}
+          title="Project Settings"
+        >
+          <form onSubmit={handleSaveRepo} className="space-y-4">
+            <div>
+              <label className="block text-sm text-tx-primary font-medium mb-1">
+                GitHub Repository
+              </label>
+              <p className="text-xs text-tx-muted mb-2">
+                Link a public GitHub repository (e.g. <code>owner/repo</code>) to see the latest commits.
+              </p>
+              <input
+                value={repoInput}
+                onChange={(e) => setRepoInput(e.target.value)}
+                placeholder="e.g. facebook/react"
+                className="w-full border border-line-strong rounded-lg px-3 py-2 text-sm
+                  bg-surface-2 text-tx-primary placeholder:text-tx-muted
+                  focus:outline-none focus:ring-2 focus:ring-accent"
+              />
+            </div>
+            <div className="flex gap-3 justify-end pt-2">
               <button
                 type="button"
-                onClick={resetForm}
+                onClick={() => setShowRepoModal(false)}
                 className="px-4 py-2 rounded-lg text-sm text-tx-secondary hover:bg-surface-2 transition-colors"
               >
                 Cancel
               </button>
+              <button
+                type="submit"
+                disabled={repoLoading}
+                className="bg-accent text-white px-4 py-2 rounded-lg text-sm font-medium
+                  hover:opacity-90 disabled:opacity-50 transition-opacity"
+              >
+                {repoLoading ? 'Saving…' : 'Save changes'}
+              </button>
             </div>
           </form>
-        )}
+        </Modal>
 
         {/* Task board — columns by status */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

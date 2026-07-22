@@ -4,17 +4,29 @@ import { api } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
 import { useUI } from '../context/UIContext';
 import Layout from '../components/Layout';
+import { Trash2, Github, Sparkles } from 'lucide-react';
+
+const getRepoPath = (urlOrPath) => {
+  if (!urlOrPath) return '';
+  try {
+    const url = new URL(urlOrPath);
+    return url.pathname.replace(/^\/|\/$/g, '');
+  } catch (e) {
+    return urlOrPath.replace(/^\/|\/$/g, '');
+  }
+};
 
 export default function ProjectsPage() {
   const { auth } = useAuth();
   const { showToast, confirm } = useUI();
-  const [projects, setProjects]       = useState([]);
+  const [projects, setProjects] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [name, setName]               = useState('');
+  const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [teamLeadId, setTeamLeadId]   = useState('');
-  const [showForm, setShowForm]       = useState(false);
-  const [loading, setLoading]         = useState(false);
+  const [teamLeadId, setTeamLeadId] = useState('');
+  const [githubRepo, setGithubRepo] = useState('');
+  const [showForm, setShowForm] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [teamMembers, setTeamMembers] = useState([]);
 
   const canManage = auth?.role === 'admin' || auth?.role === 'owner';
@@ -39,8 +51,8 @@ export default function ProjectsPage() {
     e.preventDefault();
     setLoading(true);
     try {
-      await api.post('/projects', { name, description, team_lead_id: teamLeadId });
-      setName(''); setDescription(''); setTeamLeadId(''); setShowForm(false);
+      await api.post('/projects', { name, description, team_lead_id: teamLeadId, github_repo: githubRepo });
+      setName(''); setDescription(''); setTeamLeadId(''); setGithubRepo(''); setShowForm(false);
       loadData();
       showToast('Project created', 'success');
     } catch (err) {
@@ -66,15 +78,15 @@ export default function ProjectsPage() {
     if (!searchQuery) return true;
     const q = searchQuery.toLowerCase();
     return (
-      (p.name        && p.name.toLowerCase().includes(q)) ||
+      (p.name && p.name.toLowerCase().includes(q)) ||
       (p.description && p.description.toLowerCase().includes(q))
     );
   });
 
-  const allProjects         = filteredProjects;
-  const myLedProjects       = filteredProjects.filter((p) => p.team_lead_id === auth?.user?.id);
-  const myAssignedProjects  = filteredProjects.filter((p) => p.has_assigned_tasks && p.team_lead_id !== auth?.user?.id);
-  const otherProjects       = filteredProjects.filter((p) => p.team_lead_id !== auth?.user?.id && !p.has_assigned_tasks);
+  const allProjects = filteredProjects;
+  const myLedProjects = filteredProjects.filter((p) => p.team_lead_id === auth?.user?.id);
+  const myAssignedProjects = filteredProjects.filter((p) => p.has_assigned_tasks && p.team_lead_id !== auth?.user?.id);
+  const otherProjects = filteredProjects.filter((p) => p.team_lead_id !== auth?.user?.id && !p.has_assigned_tasks);
 
   return (
     <Layout>
@@ -129,6 +141,14 @@ export default function ProjectsPage() {
               className="w-full border border-line-strong rounded-lg px-3 py-2 text-sm
                 bg-surface-2 text-tx-primary placeholder:text-tx-muted
                 focus:outline-none resize-none"
+            />
+            <input
+              value={githubRepo}
+              onChange={(e) => setGithubRepo(e.target.value)}
+              placeholder="GitHub Repository (e.g. facebook/react) (optional)"
+              className="w-full border border-line-strong rounded-lg px-3 py-2 text-sm
+                bg-surface-2 text-tx-primary placeholder:text-tx-muted
+                focus:outline-none focus:ring-2 focus:ring-accent"
             />
             {canManage && (
               <select
@@ -230,43 +250,114 @@ export default function ProjectsPage() {
 }
 
 function ProjectCard({ project, canManage, handleDelete, locked }) {
+  const [repoData, setRepoData] = useState(null);
+  const [commitData, setCommitData] = useState(null);
+
+  useEffect(() => {
+    async function fetchGithub() {
+      const repoPath = getRepoPath(project?.github_repo);
+      if (!repoPath) return;
+      try {
+        const repoRes = await fetch(`https://api.github.com/repos/${repoPath}`);
+        if (repoRes.ok) {
+          setRepoData(await repoRes.json());
+        }
+
+        const commitRes = await fetch(`https://api.github.com/repos/${repoPath}/commits?per_page=1`);
+        if (commitRes.ok) {
+          const commits = await commitRes.json();
+          setCommitData(commits[0]);
+        }
+      } catch (err) {
+        console.error('Failed to fetch github data', err);
+      }
+    }
+    if (!locked) {
+      fetchGithub();
+    }
+  }, [project?.github_repo, locked]);
+
   return (
-    <div className={`bg-surface-3 border border-line rounded-xl p-5 transition-shadow
+    <div className={`bg-surface-3 border border-line rounded-xl p-5 transition-shadow flex flex-col justify-between
       ${locked ? 'cursor-not-allowed opacity-60' : 'hover:shadow-sm'}`}>
-      <div className="flex items-start justify-between gap-2">
-        {locked ? (
-          <span
-            className="font-semibold text-tx-muted leading-snug flex items-center gap-2"
-            title="You don't have permission to access this project"
-          >
-            🔒 {project.name}
-          </span>
-        ) : (
-          <Link
-            to={`/projects/${project.id}`}
-            className="font-semibold text-tx-primary hover:text-accent leading-snug transition-colors"
-          >
-            {project.name}
-          </Link>
+      <div>
+        <div className="flex items-start justify-between gap-2">
+          {locked ? (
+            <span
+              className="font-semibold text-tx-muted leading-snug flex items-center gap-2"
+              title="You don't have permission to access this project"
+            >
+              🔒 {project.name}
+            </span>
+          ) : (
+            <Link
+              to={`/projects/${project.id}`}
+              className="font-semibold text-tx-primary hover:text-accent leading-snug transition-colors truncate"
+            >
+              {project.name}
+            </Link>
+          )}
+
+          <div className="flex items-center gap-2 shrink-0">
+            {project.github_repo && !locked && (
+              <a
+                href={`https://github.com/${getRepoPath(project.github_repo)}`}
+                target="_blank"
+                rel="noreferrer"
+                className="text-tx-muted hover:text-tx-primary transition-colors p-1"
+                title="View on GitHub"
+              >
+                <Github size={16} />
+              </a>
+            )}
+            {canManage && !locked && handleDelete && (
+              <button
+                onClick={() => handleDelete(project.id)}
+                className="text-status-danger-text/60 hover:text-status-danger-text transition-colors p-1"
+                title="Delete Project"
+              >
+                <Trash2 size={16} />
+              </button>
+            )}
+          </div>
+        </div>
+
+        {project.description && (
+          <p className="mt-2 text-sm text-tx-secondary line-clamp-2">
+            {project.description}
+          </p>
         )}
-        {canManage && !locked && handleDelete && (
-          <button
-            onClick={() => handleDelete(project.id)}
-            className="text-xs text-status-danger-text/60 hover:text-status-danger-text
-              flex-shrink-0 mt-0.5 transition-colors"
-          >
-            Delete
-          </button>
+
+        {project.github_repo && (repoData || commitData) && (
+          <div className="mt-4 p-3 bg-surface-1 border border-line rounded-lg flex flex-col gap-2">
+            <div className="flex items-center gap-1.5 text-tx-primary font-medium text-sm">
+              <Github size={14} />
+              <a href={`https://github.com/${getRepoPath(project.github_repo)}`} target="_blank" rel="noreferrer" className="hover:underline truncate">
+                {repoData?.full_name || getRepoPath(project.github_repo)}
+              </a>
+            </div>
+            {repoData?.description && (
+              <p className="text-xs text-tx-muted line-clamp-1 italic">
+                {repoData.description}
+              </p>
+            )}
+            {commitData && (
+              <div className="text-xs text-tx-secondary truncate flex items-center gap-1.5 mt-1 border-t border-line-strong pt-2">
+                <span className="font-semibold text-[10px] uppercase tracking-wider text-tx-muted shrink-0 bg-surface-2 px-1.5 py-0.5 rounded">Latest Commit</span>
+                <a href={commitData.html_url} target="_blank" rel="noreferrer" className="text-accent hover:underline truncate">
+                  {commitData.commit.message}
+                </a>
+              </div>
+            )}
+          </div>
         )}
       </div>
-      {project.description && (
-        <p className="mt-1.5 text-sm text-tx-secondary line-clamp-2">
-          {project.description}
+
+      <div className="mt-5 pt-4 border-t border-line-strong">
+        <p className="text-xs text-tx-muted">
+          Created {new Date(project.created_at).toLocaleDateString()}
         </p>
-      )}
-      <p className="mt-3 text-xs text-tx-muted">
-        Created {new Date(project.created_at).toLocaleDateString()}
-      </p>
+      </div>
     </div>
   );
 }

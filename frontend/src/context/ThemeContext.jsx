@@ -20,12 +20,8 @@ import { createContext, useContext, useEffect, useState } from 'react';
 const ThemeContext = createContext(null);
 
 function getInitialTheme() {
-  // 1. Saved preference
   const saved = localStorage.getItem('theme');
   if (saved === 'light' || saved === 'dark') return saved;
-  // 2. OS preference
-  if (window.matchMedia('(prefers-color-scheme: dark)').matches) return 'dark';
-  // 3. Default
   return 'light';
 }
 

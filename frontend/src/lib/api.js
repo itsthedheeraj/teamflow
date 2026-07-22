@@ -23,7 +23,7 @@ async function request(path, options = {}) {
     headers,
   });
 
-  if (res.status === 401) {
+  if (res.status === 401 && !path.includes('/auth/login')) {
     // Token expired or invalid — clear storage and redirect to login
     localStorage.removeItem('token');
     localStorage.removeItem('auth');

@@ -23,7 +23,7 @@ async function listProjects(client, userId, role) {
   // - they have at least one task assigned to them in that project
   const isOwner = role === 'owner';
   const { rows } = await client.query(
-    `SELECT p.id, p.org_id, p.name, p.description, p.team_lead_id, p.created_by, p.created_at,
+    `SELECT p.id, p.org_id, p.name, p.description, p.team_lead_id, p.created_by, p.created_at, p.github_repo,
             EXISTS(SELECT 1 FROM tasks t WHERE t.project_id = p.id AND t.assigned_to = $1) as has_assigned_tasks
      FROM projects p
      WHERE $2 = TRUE
@@ -38,7 +38,7 @@ async function listProjects(client, userId, role) {
 
 async function getProject(client, projectId) {
   const { rows } = await client.query(
-    `SELECT id, org_id, name, description, team_lead_id, created_by, created_at
+    `SELECT id, org_id, name, description, team_lead_id, created_by, created_at, github_repo
      FROM projects
      WHERE id = $1`,
     [projectId]
@@ -48,29 +48,31 @@ async function getProject(client, projectId) {
   return rows[0] || null;
 }
 
-async function createProject(client, { orgId, name, description, teamLeadId, createdBy }) {
+async function createProject(client, { orgId, name, description, teamLeadId, createdBy, githubRepo }) {
   const { rows } = await client.query(
-    `INSERT INTO projects (org_id, name, description, team_lead_id, created_by)
-     VALUES ($1, $2, $3, $4, $5)
-     RETURNING id, org_id, name, description, team_lead_id, created_by, created_at`,
-    [orgId, name, description || null, teamLeadId, createdBy]
+    `INSERT INTO projects (org_id, name, description, team_lead_id, created_by, github_repo)
+     VALUES ($1, $2, $3, $4, $5, $6)
+     RETURNING id, org_id, name, description, team_lead_id, created_by, created_at, github_repo`,
+    [orgId, name, description || null, teamLeadId, createdBy, githubRepo || null]
   );
   return rows[0];
 }
 
-async function updateProject(client, projectId, { name, description, teamLeadId }) {
+async function updateProject(client, projectId, { name, description, teamLeadId, githubRepo }) {
   const { rows } = await client.query(
     `UPDATE projects
      SET name         = COALESCE($2, name),
          description  = COALESCE($3, description),
-         team_lead_id = COALESCE($4, team_lead_id)
+         team_lead_id = COALESCE($4, team_lead_id),
+         github_repo  = COALESCE($5, github_repo)
      WHERE id = $1
-     RETURNING id, org_id, name, description, team_lead_id, created_at`,
+     RETURNING id, org_id, name, description, team_lead_id, created_at, github_repo`,
     [
       projectId,
       name || null,
       description !== undefined ? description : null,
-      teamLeadId !== undefined ? teamLeadId : null
+      teamLeadId !== undefined ? teamLeadId : null,
+      githubRepo !== undefined ? githubRepo : null
     ]
   );
   return rows[0] || null;

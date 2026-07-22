@@ -112,6 +112,7 @@ router.patch(
         name: req.body.name,
         description: req.body.description,
         teamLeadId: req.body.team_lead_id,
+        githubRepo: req.body.github_repo,
       });
 
       if (req.body.team_lead_id && req.body.team_lead_id !== existingProject.team_lead_id) {
