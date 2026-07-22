@@ -79,6 +79,7 @@ router.post(
         description: req.body.description,
         teamLeadId: req.body.team_lead_id || null,
         createdBy: req.user.userId,
+        githubRepo: req.body.github_repo,
       });
       res.status(201).json({ project });
     } catch (err) {

@@ -328,13 +328,14 @@ function ProjectCard({ project, canManage, handleDelete, locked }) {
           </p>
         )}
 
-        {project.github_repo && (repoData || commitData) && (
+        {project.github_repo && (
           <div className="mt-4 p-3 bg-surface-1 border border-line rounded-lg flex flex-col gap-2">
             <div className="flex items-center gap-1.5 text-tx-primary font-medium text-sm">
               <Github size={14} />
               <a href={`https://github.com/${getRepoPath(project.github_repo)}`} target="_blank" rel="noreferrer" className="hover:underline truncate">
                 {repoData?.full_name || getRepoPath(project.github_repo)}
               </a>
+              {!repoData && <span className="text-[10px] bg-surface-2 text-tx-muted px-1.5 py-0.5 rounded shrink-0">Private</span>}
             </div>
             {repoData?.description && (
               <p className="text-xs text-tx-muted line-clamp-1 italic">
