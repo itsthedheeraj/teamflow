@@ -63,6 +63,7 @@ app.use('/api/notifications', notificationRoutes);
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 app.get('/', (req, res) => res.json({ message: 'Welcome to the Teamflow API' }));
 
+
 // ─────────────────────────────────────────────
 // STEP 4 — Error handler (must be last)
 // ─────────────────────────────────────────────
