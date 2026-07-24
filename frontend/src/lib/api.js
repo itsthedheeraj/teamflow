@@ -4,7 +4,7 @@
  * consistently and 401 responses are handled in one place.
  */
 
-const BASE_URL = '/api';
+const BASE_URL = import.meta.env.VITE_API_URL;
 
 function getToken() {
   return localStorage.getItem('token');
