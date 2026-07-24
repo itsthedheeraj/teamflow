@@ -39,6 +39,7 @@
 require('dotenv').config();
 const { Client } = require('pg');
 const bcrypt = require('bcryptjs');
+const { buildPgConfig } = require('./connection');
 const { syncMemberCount, syncTaskCount } = require('../services/meteringService');
 
 const SEED_PASSWORD = 'Seedpass1!';
@@ -189,7 +190,7 @@ async function seed() {
   // and insert rows directly into org-scoped tables. The app server
   // itself never uses this connection string.
   const superUrl = process.env.DATABASE_SUPERUSER_URL || process.env.DATABASE_URL;
-  const client = new Client({ connectionString: superUrl });
+  const client = new Client(buildPgConfig(superUrl));
   await client.connect();
   console.log('Connected for seeding (superuser).');
 

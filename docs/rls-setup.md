@@ -108,6 +108,16 @@ Run the migration SQL manually in Neon's SQL editor (skip the
 Set `DATABASE_URL` to Neon's provided connection string — it's
 already non-superuser.
 
+## Aiven
+
+Aiven gives you a PostgreSQL URI with the host, port, database, user,
+and password already bundled together. Use that URI for `DATABASE_URL`
+and make sure `sslmode=require` is present.
+
+If Aiven only gives you one connection string, reuse it for
+`DATABASE_SUPERUSER_URL` as well so the migration runner can use the
+same connection.
+
 ---
 
 ## How the Middleware Chain Sets the Context

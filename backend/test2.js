@@ -1,11 +1,10 @@
 require('dotenv').config();
 const jwt = require('jsonwebtoken');
 const { Pool } = require('pg');
+const { buildPgConfig } = require('./src/db/connection');
 
 async function run() {
-  const pool = new Pool({
-    connectionString: process.env.DATABASE_SUPERUSER_URL
-  });
+  const pool = new Pool(buildPgConfig(process.env.DATABASE_SUPERUSER_URL || process.env.DATABASE_URL));
   
   const email = 'forgotemail169@gmail.com';
   const userRes = await pool.query("SELECT * FROM users WHERE email = $1", [email]);

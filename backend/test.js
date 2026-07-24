@@ -1,4 +1,5 @@
 const http = require('http');
+const { buildPgConfig } = require('./src/db/connection');
 
 async function run() {
   const email = 'forgotemail169@gmail.com';
@@ -6,9 +7,7 @@ async function run() {
   // Connect to DB directly to get a valid user token if we don't know password
   // Actually let's just query the DB for the task
   const { Pool } = require('pg');
-  const pool = new Pool({
-    connectionString: 'postgresql://postgres:postgres@localhost:5432/teamflow'
-  });
+  const pool = new Pool(buildPgConfig('postgresql://postgres:postgres@localhost:5432/teamflow'));
   
   const userRes = await pool.query("SELECT * FROM users WHERE email = $1", [email]);
   if (userRes.rows.length === 0) {

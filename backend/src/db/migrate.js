@@ -8,6 +8,7 @@ require('dotenv').config();
 const fs = require('fs');
 const path = require('path');
 const { Client } = require('pg');
+const { buildPgConfig } = require('./connection');
 
 function quoteIdentifier(value) {
   return `"${String(value).replace(/"/g, '""')}"`;
@@ -30,9 +31,9 @@ function renderMigration(sql) {
 }
 
 async function migrate() {
-  const client = new Client({
-    connectionString: process.env.DATABASE_SUPERUSER_URL,
-  });
+  const client = new Client(
+    buildPgConfig(process.env.DATABASE_SUPERUSER_URL || process.env.DATABASE_URL)
+  );
 
   await client.connect();
   console.log('Connected to database as superuser for migration.');

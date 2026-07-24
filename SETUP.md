@@ -38,6 +38,13 @@ Change `yourpassword` to whatever you set for those roles in psql.
 - For `DATABASE_SUPERUSER_URL` on Neon: use the same string — Neon's
   default user has the necessary privileges without being a true superuser.
 
+**Aiven (hosted):**
+- Dashboard → your service → PostgreSQL connection details
+- Copy the PostgreSQL URI and make sure it includes `sslmode=require`.
+- Use that URI for `DATABASE_URL`.
+- If Aiven gives you a second admin-capable URI, put it in `DATABASE_SUPERUSER_URL`.
+- If you only have one URI, reuse it for `DATABASE_SUPERUSER_URL` too.
+
 **Supabase (hosted):**
 - Dashboard → Project Settings → Database → Connection String
 - For `DATABASE_URL`: use the **"URI"** format under the "Transaction

@@ -1,4 +1,5 @@
 const { Pool } = require('pg');
+const { buildPgConfig } = require('./connection');
 
 /**
  * Application database pool.
@@ -14,7 +15,7 @@ const { Pool } = require('pg');
  * in migration scripts).
  */
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
+  ...buildPgConfig(process.env.DATABASE_URL),
   max: 20,
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 2000,
