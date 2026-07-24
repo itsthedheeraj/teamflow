@@ -14,4 +14,4 @@ CREATE TABLE IF NOT EXISTS token_revocations (
 
 CREATE INDEX IF NOT EXISTS idx_token_revocations_user_id ON token_revocations(user_id);
 
-GRANT SELECT, INSERT, UPDATE, DELETE ON token_revocations TO app_user;
+GRANT SELECT, INSERT, UPDATE, DELETE ON token_revocations TO __APP_DATABASE_USER__;

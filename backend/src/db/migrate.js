@@ -9,6 +9,26 @@ const fs = require('fs');
 const path = require('path');
 const { Client } = require('pg');
 
+function quoteIdentifier(value) {
+  return `"${String(value).replace(/"/g, '""')}"`;
+}
+
+function getAppDatabaseName() {
+  const databaseUrl = new URL(process.env.DATABASE_URL);
+  return quoteIdentifier(databaseUrl.pathname.replace(/^\//, ''));
+}
+
+function getAppDatabaseUser() {
+  const databaseUrl = new URL(process.env.DATABASE_URL);
+  return quoteIdentifier(databaseUrl.username);
+}
+
+function renderMigration(sql) {
+  return sql
+    .replace(/__APP_DATABASE_NAME__/g, getAppDatabaseName())
+    .replace(/__APP_DATABASE_USER__/g, getAppDatabaseUser());
+}
+
 async function migrate() {
   const client = new Client({
     connectionString: process.env.DATABASE_SUPERUSER_URL,
@@ -24,7 +44,7 @@ async function migrate() {
     if (!file.endsWith('.sql')) continue;
     console.log(`Running migration: ${file}`);
     const sql = fs.readFileSync(path.join(migrationsDir, file), 'utf8');
-    await client.query(sql);
+    await client.query(renderMigration(sql));
     console.log(`  ✓ ${file}`);
   }
 

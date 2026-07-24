@@ -20,13 +20,16 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 --   connection string (NOT the postgres/superuser one) in
 --   DATABASE_URL. See README for provider-specific notes.
 -- =============================================================
-DO $$
-BEGIN
-  IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'app_user') THEN
-    CREATE ROLE app_user LOGIN PASSWORD 'changeme_in_production';
-  END IF;
-END
-$$;
+
+-- Clever Cloud manages database users.
+-- CREATE ROLE is not permitted.
+-- DO $$
+-- BEGIN
+--   IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'app_user') THEN
+--     CREATE ROLE app_user LOGIN PASSWORD 'changeme_in_production';
+--   END IF;
+-- END
+-- $$;
 
 -- =============================================================
 -- Tables
@@ -150,15 +153,20 @@ CREATE POLICY tenant_isolation ON tasks
 -- =============================================================
 -- Grants for app_user
 -- =============================================================
-GRANT CONNECT ON DATABASE teamflow TO app_user;
-GRANT USAGE ON SCHEMA public TO app_user;
-GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO app_user;
-GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO app_user;
+GRANT CONNECT ON DATABASE __APP_DATABASE_NAME__ TO __APP_DATABASE_USER__;
+GRANT USAGE ON SCHEMA public TO __APP_DATABASE_USER__;
+GRANT SELECT, INSERT, UPDATE, DELETE ON organizations TO __APP_DATABASE_USER__;
+GRANT SELECT, INSERT, UPDATE, DELETE ON users TO __APP_DATABASE_USER__;
+GRANT SELECT, INSERT, UPDATE, DELETE ON org_members TO __APP_DATABASE_USER__;
+GRANT SELECT, INSERT, UPDATE, DELETE ON invite_tokens TO __APP_DATABASE_USER__;
+GRANT SELECT, INSERT, UPDATE, DELETE ON projects TO __APP_DATABASE_USER__;
+GRANT SELECT, INSERT, UPDATE, DELETE ON tasks TO __APP_DATABASE_USER__;
+GRANT SELECT, INSERT, UPDATE, DELETE ON stripe_events TO __APP_DATABASE_USER__;
 
 ALTER DEFAULT PRIVILEGES IN SCHEMA public
-  GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO app_user;
+  GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO __APP_DATABASE_USER__;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public
-  GRANT USAGE, SELECT ON SEQUENCES TO app_user;
+  GRANT USAGE, SELECT ON SEQUENCES TO __APP_DATABASE_USER__;
 
 -- =============================================================
 -- Indexes
