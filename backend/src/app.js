@@ -5,6 +5,7 @@ const cookieParser = require('cookie-parser');
 // Middleware
 const { releaseDbClient } = require('./middleware/releaseDbClient');
 const { errorHandler } = require('./middleware/errorHandler');
+const { requestLogger } = require('./middleware/requestLogger');
 
 // Routes
 const authRoutes    = require('./routes/auth');
@@ -17,6 +18,10 @@ const usageRoutes   = require('./routes/usage');
 const notificationRoutes = require('./routes/notifications');
 
 const app = express();
+
+// Log incoming requests
+app.use(requestLogger);
+
 
 // ─────────────────────────────────────────────
 // STEP 1 — Stripe webhook (MUST be before express.json())
