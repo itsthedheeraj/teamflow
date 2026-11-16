@@ -3,7 +3,7 @@
 A multi-tenant SaaS starter application demonstrating production-grade backend
 architecture: organization-based accounts, role-based access control, Stripe
 subscription billing, and Redis-based usage metering. A lightweight task tracker
-sits on top to make the demo tangible — but the core engineering value is in the
+sits on top to make the demo tangible — but the core value is in the
 SaaS infrastructure underneath.
 
 **Built as a portfolio project to demonstrate real, interview-relevant backend concepts:**
